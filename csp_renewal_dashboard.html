@@ -1,0 +1,2602 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSP Renewal Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #f3f4f6; }
+  .filter-label { font-size: 0.7rem; font-weight: 600; color: #374151; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 3px; }
+  .filter-select { border: 1px solid #d1d5db; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; width: 100%; background: white; color: #1f2937; cursor: pointer; }
+  .filter-select:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,0.2); }
+  .kpi-box { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 20px; }
+  .kpi-title { font-size: 0.78rem; font-weight: 700; color: #111827; margin-bottom: 12px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+  .kpi-value { font-size: 1.6rem; font-weight: 700; color: #111827; }
+  .kpi-label { font-size: 0.7rem; color: #6b7280; margin-top: 3px; }
+  .kpi-item { flex: 1; }
+  .tab-btn { padding: 6px 16px; font-size: 0.8rem; border: 1px solid #d1d5db; border-radius: 4px 4px 0 0; cursor: pointer; background: #f9fafb; color: #6b7280; border-bottom: none; }
+  .tab-btn.active { background: white; color: #0078d4; font-weight: 600; border-bottom: 1px solid white; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .table-header { background: #f9fafb; font-size: 0.72rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.04em; }
+  .table-row-main { font-weight: 600; background: #f0f4ff; cursor: pointer; }
+  .table-row-sub { font-size: 0.8rem; background: white; }
+  .table-row-total { font-weight: 700; background: #e5e7eb; }
+  td, th { padding: 7px 10px; text-align: right; white-space: nowrap; }
+  td:first-child, th:first-child { text-align: left; }
+  tr:hover td { background: rgba(0,120,212,0.04); }
+  .upload-zone { border: 2px dashed #d1d5db; border-radius: 12px; padding: 60px 40px; text-align: center; transition: all 0.2s; cursor: pointer; background: white; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: #0078d4; background: #f0f7ff; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .toggle-icon { display: inline-block; width: 16px; text-align: center; transition: transform 0.2s; }
+  .toggle-icon.open { transform: rotate(90deg); }
+  #revenueChart { max-height: 280px; }
+  /* ── Sorting ── */
+  .sortable{cursor:pointer;user-select:none}.sortable:hover{background:#eef2ff!important}.sort-icon{margin-left:3px;font-size:.58rem;opacity:.25}.sort-icon.active{opacity:1;color:#0078d4}
+  /* ── Cross-filter ── */
+  tr.cf-sel td{background:rgba(59,130,246,.1)!important;outline:1px solid rgba(59,130,246,.35);outline-offset:-1px}
+  .cf-bar{display:none;align-items:center;gap:8px;padding:6px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;font-size:.78rem;color:#1d4ed8;flex-wrap:wrap}.cf-bar.show{display:flex}
+  /* ── Drill modal ── */
+  #drill-modal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5)}#drill-modal.show{display:flex;align-items:center;justify-content:center}
+  #drill-panel{background:#fff;border-radius:10px;width:min(96vw,1120px);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden}
+  .dth{position:sticky;top:0;background:#f9fafb;z-index:1;white-space:nowrap;padding:8px 10px;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#374151;text-align:right;border-bottom:1px solid #e5e7eb}.dth:first-child{text-align:left}
+  /* ── Export / utility buttons ── */
+  .btn-xs{display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.73rem;font-weight:500;cursor:pointer;background:#fff;color:#374151;transition:background .15s;white-space:nowrap}.btn-xs:hover{background:#f3f4f6}
+  /* ── Drill icon in table rows ── */
+  .dico{font-size:.72rem;cursor:pointer;color:#d1d5db;margin-right:3px;padding:1px 3px;border-radius:3px;vertical-align:middle}.dico:hover{color:#0078d4;background:#eff6ff}
+  /* ── Sparkline ── */
+  .spark{display:inline-flex;align-items:center;vertical-align:middle;margin-left:5px}
+  /* ── Analysis panels ── */
+  .ap{background:#fff;border:1px solid #e5e7eb;border-top:3px solid #c7d2fe;border-radius:0 0 8px 8px;padding:13px 18px 11px;font-size:.76rem;color:#374151;line-height:1.8;margin-top:-4px;margin-bottom:14px}
+  .ap.ap-hide{display:none}
+  .ap-title{font-weight:700;color:#1e40af;font-size:.78rem;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+  .ap-row{display:flex;flex-wrap:wrap;gap:5px 10px;margin:4px 0 8px;align-items:center}
+  .ap-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:12px;font-size:.69rem;font-weight:700;white-space:nowrap}
+  .ap-g{background:#d1fae5;color:#065f46}   /* good  */
+  .ap-w{background:#fef3c7;color:#92400e}   /* warn  */
+  .ap-r{background:#fee2e2;color:#991b1b}   /* risk  */
+  .ap-b{background:#e0e7ff;color:#3730a3}   /* info  */
+  .ap-v{font-weight:700;color:#111827}      /* value */
+  .ap-dim{color:#6b7280;font-size:.72rem}
+  .ap-line{border:none;border-top:1px solid #f3f4f6;margin:7px 0}
+  .ap-pt{display:block;padding:1px 0;padding-left:14px;text-indent:-14px}
+  .ap-pt::before{content:'';display:none}
+  /* ── Info / definition blocks ── */
+  details.info-block{margin-bottom:8px}
+  details.info-block>summary{cursor:pointer;font-size:.73rem;color:#6b7280;font-weight:500;padding:3px 10px;border-radius:4px;list-style:none;display:inline-flex;align-items:center;gap:5px;border:1px solid #e5e7eb;background:#fafafa;user-select:none}
+  details.info-block>summary::-webkit-details-marker{display:none}
+  details.info-block>summary::before{content:'▶';font-size:.52rem;transition:transform .2s;color:#9ca3af}
+  details[open].info-block>summary::before{transform:rotate(90deg)}
+  details.info-block>summary:hover{background:#f3f4f6;color:#374151;border-color:#d1d5db}
+  .info-content{background:#fafafa;border:1px solid #e5e7eb;border-radius:0 6px 6px 6px;padding:14px 18px;font-size:.75rem;color:#374151;line-height:1.65}
+  .info-content h4{font-weight:700;color:#111827;margin-bottom:7px;font-size:.77rem;margin-top:12px}.info-content h4:first-child{margin-top:0}
+  .abbr-grid{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin-bottom:4px;align-items:start}
+  .ia{font-weight:700;color:#1d4ed8;white-space:nowrap;font-family:monospace;font-size:.73rem;padding-top:1px}
+  .info-note{background:#fffbeb;border-left:3px solid #f59e0b;padding:7px 12px;border-radius:0 4px 4px 0;margin-top:10px;font-size:.73rem;line-height:1.6}
+  .info-tip{background:#f0fdf4;border-left:3px solid #16a34a;padding:7px 12px;border-radius:0 4px 4px 0;margin-top:6px;font-size:.73rem;line-height:1.6}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    </div>
+    <div>
+      <h1 class="text-sm font-700 text-gray-900 font-bold">CSP Renewal Dashboard</h1>
+      <p class="text-xs text-gray-500">Microsoft 365 訂閱續約分析</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <span id="data-info" class="text-xs text-gray-500 hidden"></span>
+    <button id="export-excel-btn" onclick="exportExcel()" class="hidden btn-xs" title="匯出目前篩選資料為 Excel">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      匯出 Excel
+    </button>
+    <button id="reload-btn" onclick="document.getElementById('upload-section').classList.remove('hidden'); document.getElementById('dashboard-section').classList.add('hidden');" class="hidden text-xs px-3 py-1.5 border border-gray-300 rounded-md text-gray-600 hover:bg-gray-50">重新上傳</button>
+  </div>
+</div>
+
+<!-- Upload Section -->
+<div id="upload-section" class="flex items-center justify-center min-h-[calc(100vh-60px)] p-8">
+  <div class="max-w-lg w-full">
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+      <div class="mb-4">
+        <svg class="w-12 h-12 text-blue-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+        <h2 class="text-lg font-semibold text-gray-700 mb-1">上傳 Excel 訂單資料</h2>
+        <p class="text-sm text-gray-500 mb-4">拖曳或點擊選取 .xlsx 檔案<br><span class="text-xs text-gray-400">例如：CSP訂單資料_raw.xlsx</span></p>
+      </div>
+      <div class="bg-blue-50 rounded-lg p-3 text-left text-xs text-gray-600">
+        <p class="font-medium text-blue-700 mb-1">必要欄位：</p>
+        <div class="grid grid-cols-2 gap-1">
+          <span>• 訂閱動作</span><span>• 訂單下單日</span>
+          <span>• 訂閱到期日</span><span>• 商品名稱</span>
+          <span>• 微軟SubID</span><span>• 數量 / 成交單價未稅</span>
+          <span>• 原訂閱之微軟SubID</span><span>• 経銷商 / 最終客戶</span>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls" class="hidden" onchange="handleFileSelect(event)">
+    <div id="loading" class="hidden text-center mt-4">
+      <div class="inline-flex items-center gap-2 text-sm text-blue-600">
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+        載入資料中，請稍候...
+      </div>
+    </div>
+    <div id="error-msg" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"></div>
+    <div id="auto-load-status" class="hidden mt-3 text-center">
+      <div class="inline-flex items-center gap-2 text-sm text-blue-600">
+        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+        <span id="auto-load-msg">自動載入中...</span>
+      </div>
+    </div>
+    <div id="auto-load-hint" class="hidden mt-2 text-xs text-gray-400 text-center"></div>
+  </div>
+</div>
+
+<!-- Dashboard Section -->
+<div id="dashboard-section" class="hidden p-4">
+
+  <!-- Filter Panel -->
+  <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
+    <div class="grid grid-cols-7 gap-3 mb-3">
+      <div class="relative" id="exp-month-wrapper">
+        <div class="filter-label">Expiration Date + 1</div>
+        <button type="button" class="filter-select text-left flex items-center justify-between" id="exp-month-btn" onclick="toggleExpDropdown(event)">
+          <span id="exp-month-label" class="truncate">全部</span>
+          <svg class="w-3 h-3 ml-1 shrink-0 text-gray-400 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="exp-month-dropdown" class="hidden absolute z-50 bg-white border border-gray-300 rounded-lg shadow-xl mt-0.5" style="min-width:230px;max-height:340px;overflow-y:auto;">
+          <div class="px-3 py-1.5 border-b flex gap-3 bg-gray-50 sticky top-0">
+            <button onclick="selectAllExpMonths()" class="text-xs text-blue-600 hover:underline font-medium">全選</button>
+            <span class="text-gray-300 text-xs">|</span>
+            <button onclick="clearAllExpMonths()" class="text-xs text-blue-600 hover:underline font-medium">清除</button>
+          </div>
+          <div id="exp-month-list" class="py-1"></div>
+        </div>
+      </div>
+      <div>
+        <div class="filter-label">Field Geography</div>
+        <select class="filter-select" id="f-geography" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Segment</div>
+        <select class="filter-select" id="f-segment" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Partner (To)</div>
+        <select class="filter-select" id="f-partner-to" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Product (To)</div>
+        <select class="filter-select" id="f-product-to" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Billing Option (To)</div>
+        <select class="filter-select" id="f-billing" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">AM</div>
+        <select class="filter-select" id="f-am" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-7 gap-3">
+      <div>
+        <div class="filter-label">Microsoft FY</div>
+        <select class="filter-select" id="f-fy" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Upsell Motion</div>
+        <select class="filter-select" id="f-upsell-motion" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Internal Team</div>
+        <select class="filter-select" id="f-internal-team" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Partner (From)</div>
+        <select class="filter-select" id="f-partner-from" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Product (From)</div>
+        <select class="filter-select" id="f-product-from" onchange="applyFilters()">
+          <option value="">全部</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">On-Time?</div>
+        <select class="filter-select" id="f-ontime" onchange="applyFilters()">
+          <option value="">全部</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div>
+        <div class="filter-label">Renewed?</div>
+        <select class="filter-select" id="f-renewed" onchange="applyFilters()">
+          <option value="">全部</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <details class="info-block">
+    <summary>📖 At-Renewal 指標 — 定義、縮寫說明與分析建議</summary>
+    <div class="info-content">
+      <h4>📌 縮寫對照</h4>
+      <div class="abbr-grid">
+        <span class="ia">ARR</span><span>Annual Recurring Revenue｜<strong>年度經常性收入</strong>：訂閱制服務每年可預期的固定收入，不含一次性費用</span>
+        <span class="ia">CSP</span><span>Cloud Solution Provider｜<strong>雲端解決方案合作夥伴</strong>：微軟授權通路商，代理銷售 Microsoft 365 等雲端訂閱</span>
+        <span class="ia">At-Renewal</span><span><strong>到期節點</strong>：訂閱到期時所計算的指標，反映客戶在到期時點的續約行為</span>
+        <span class="ia">Recapture Rate</span><span><strong>留客率</strong>：已續約 ARR ÷ 「已續約客戶的」到期結束 ARR；衡量從決定續約的客戶中實際回收多少收益</span>
+        <span class="ia">Renewal Rate</span><span><strong>續約率</strong>：已續約 ARR ÷ 全體到期結束 ARR（含未續約客戶）；反映整體業務保留能力</span>
+        <span class="ia">Seats</span><span><strong>席位 / 授權數量</strong>：訂閱的使用者帳號數量</span>
+        <span class="ia">Expansion</span><span><strong>擴增</strong>：同一產品增加席位數量（同品加量），客戶規模擴大</span>
+        <span class="ia">Upsell</span><span><strong>升級銷售</strong>：客戶從低階產品升級至高階產品（跨品升級），提高單價</span>
+      </div>
+      <div class="info-note">
+        <strong>📊 分析重點：</strong>Recapture Rate 與 Renewal Rate 的差距直接反映「未續約比例」的影響程度。若差距 &gt; 15%，表示有大量客戶未續約，需優先確認流失原因（競爭對手介入、預算縮減或服務問題）。CSP Renewal Rate 以實際帳單收入計算，與 ARR 基礎的數值可能略有差異，適合作為財務核對依據。Expansion Rate 高代表現有客戶規模擴大（成長型客戶），Upsell Rate 高代表產品升級成功。
+      </div>
+      <div class="info-tip">
+        <strong>✅ 檢討建議：</strong>① Renewal Rate &lt; 80% → 立即檢視流失訂閱清單，確認是否有競爭替代或預算刪減。② Seats Renewal Rate 明顯低於 ARR Renewal Rate → 部分客戶降低席位數，需評估能否透過 Upsell（升級）彌補 ARR 損失。③ Expansion Rate 與 Upsell Rate 皆低 → 客戶滿意度或業務推廣力度不足，建議加強客戶成功管理（Customer Success）。
+      </div>
+    </div>
+  </details>
+
+  <!-- KPI Row 1: At-Renewal -->
+  <div class="flex gap-4 mb-3">
+    <div class="kpi-box" style="flex:1.1">
+      <div class="kpi-title">At-Renewal (Annualized ARR)</div>
+      <div class="flex gap-5">
+        <div class="kpi-item">
+          <div class="kpi-value text-blue-700" id="kpi-recapture">--</div>
+          <div class="kpi-label">Annualized Recapture Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-renewal-rate">--</div>
+          <span id="spark-ann-rate" class="spark"></span>
+          <div class="kpi-label">Annualized Renewal Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-seats-renewal">--</div>
+          <div class="kpi-label">Seats Renewal Rate</div>
+        </div>
+      </div>
+    </div>
+    <div class="kpi-box" style="flex:2">
+      <div class="kpi-title">At-Renewal (Billed Revenue &amp; Expansion)</div>
+      <div class="flex gap-5">
+        <div class="kpi-item">
+          <div class="kpi-value text-blue-600" id="kpi-csp-recapture">--</div>
+          <div class="kpi-label">CSP Recapture Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-csp-renewal">--</div>
+          <div class="kpi-label">CSP Renewal Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-seats-recapture">--</div>
+          <div class="kpi-label">Seats Recapture Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value text-green-700" id="kpi-expansion-rate">--</div>
+          <div class="kpi-label">Expansion Renewal Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value text-orange-600" id="kpi-upsell-rate">--</div>
+          <div class="kpi-label">Upsell Renewal Rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="ap1" class="ap ap-hide"></div>
+
+  <details class="info-block">
+    <summary>📖 TTM 指標 — 定義、縮寫說明與分析建議</summary>
+    <div class="info-content">
+      <h4>📌 縮寫對照</h4>
+      <div class="abbr-grid">
+        <span class="ia">TTM</span><span>Trailing Twelve Months｜<strong>過去十二個月滾動統計</strong>：涵蓋最近 12 個月內所有到期訂閱的加總，消除單月波動、反映長期趨勢</span>
+        <span class="ia">Mid-Term</span><span><strong>訂閱中途異動</strong>：在訂閱到期日前發生的異動，例如中途加購席位、升級或降級，影響 Exit ARR 與 Entry ARR 之差</span>
+        <span class="ia">TTM ARR Growth ($)</span><span><strong>TTM ARR 淨成長額</strong>：續約初始 ARR − 到期初始 ARR；正值代表業績成長，負值代表 ARR 整體萎縮</span>
+        <span class="ia">TTM ARR Growth (Seats)</span><span><strong>席位數淨增減</strong>：續約席位數 − 到期初始席位數；反映使用者規模的變化</span>
+      </div>
+      <div class="info-note">
+        <strong>📊 分析重點：</strong>TTM Renewal Rate 以到期「初始」ARR 為分母，Annualized Renewal Rate 以到期「結束」ARR 為分母；若 TTM &lt; Annualized，代表訂閱期間有 Mid-Term ARR 流失（客戶中途降量）。TTM 指標跨越完整 12 個月，較能反映業務全貌，適合用於季報或年度績效評估。
+      </div>
+      <div class="info-tip">
+        <strong>✅ 檢討建議：</strong>① TTM ARR Growth 為負 → 業績整體萎縮，需找出 ARR 流失最大的 Partner 或 Product（搭配下方表格交叉篩選）。② TTM Renewal Rate 持續低於 85% → 設定警示並啟動客戶挽回計畫（Rescue Plan）。③ TTM ARR Growth (Seats) 為正但 ARR Growth 為負 → 席位數增加但 ARR 萎縮，可能是降階（Downgrade）問題，需重點改善 Upsell 成效。
+      </div>
+    </div>
+  </details>
+
+  <!-- KPI Row 2: TTM -->
+  <div class="flex gap-4 mb-3">
+    <div class="kpi-box flex-1">
+      <div class="kpi-title">At-Renewal + Mid-Term (TTM)</div>
+      <div class="flex gap-5">
+        <div class="kpi-item">
+          <div class="kpi-value text-blue-700" id="kpi-ttm-recapture">--</div>
+          <div class="kpi-label">TTM Annualized Recapture Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-ttm-renewal">--</div>
+          <span id="spark-ttm-rate" class="spark"></span>
+          <div class="kpi-label">TTM Annualized Renewal Rate</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-ttm-arr-growth">--</div>
+          <div class="kpi-label">TTM ARR Growth ($)</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-ttm-seats-growth">--</div>
+          <div class="kpi-label">TTM ARR Growth (Seats)</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-ttm-seats">--</div>
+          <div class="kpi-label">TTM Seats Renewal Rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="ap2" class="ap ap-hide"></div>
+
+  <details class="info-block">
+    <summary>📖 Upsell Rates — 定義、縮寫說明與分析建議</summary>
+    <div class="info-content">
+      <h4>📌 縮寫對照</h4>
+      <div class="abbr-grid">
+        <span class="ia">O to M</span><span>Office 365 → Microsoft 365｜<strong>從 O365 系列升級至 M365 系列</strong>：M365 包含更完整的合規、資安與 Teams 進階功能，是最大規模的升級路徑</span>
+        <span class="ia">ME3</span><span>Microsoft 365 E3｜<strong>企業版基礎方案</strong>：適合中大型企業的核心生產力授權</span>
+        <span class="ia">ME5</span><span>Microsoft 365 E5｜<strong>企業版進階方案</strong>：含進階資安（Defender）、合規與語音功能，單價大幅高於 E3，升級效益最高</span>
+        <span class="ia">BB</span><span>M365 Business Basic｜<strong>商務基本版</strong>：最入門的商務授權，主要提供雲端應用程式</span>
+        <span class="ia">BS</span><span>M365 Business Standard｜<strong>商務標準版</strong>：包含桌面版 Office 應用程式（Word、Excel 等）</span>
+        <span class="ia">BP</span><span>M365 Business Premium｜<strong>商務進階版</strong>：含資安功能（Intune、Defender for Business），商務方案中最高階</span>
+        <span class="ia">Basic to Prem. or Std.</span><span><strong>BB 升級至 BP 或 BS</strong>：商務基本版往上升級的兩條路徑</span>
+        <span class="ia">Std. to Prem.</span><span><strong>BS 升級至 BP</strong>：商務標準版升級至進階版，通常因資安需求驅動</span>
+        <span class="ia">Upsell $ / Upsell Rate</span><span><strong>升級金額 / 升級率</strong>：分別代表因升級而新增的 ARR 金額，以及升級席位占可升級席位的百分比</span>
+      </div>
+      <div class="info-note">
+        <strong>📊 分析重點：</strong>O to M 因 O365 客戶基數龐大，轉換潛力最高，是業績成長的主要引擎。ME3→ME5 單價提升幅度最大（約 40-60% 增幅），對 ARR 成長貢獻顯著，通常由資安需求驅動。Upsell Rate (ARR) 與 Upsell Rate (Seats) 差距大，代表升級後每席位單價差異顯著，即客戶升至更高階方案。
+      </div>
+      <div class="info-tip">
+        <strong>✅ 檢討建議：</strong>① O to M Rate &lt; 10% → 加強向 O365 客戶說明 M365 附加價值（Teams、合規、安全性、Copilot 資格）。② ME3→ME5 Rate 偏低 → 資安議題尚未引起重視，建議提供威脅報告或資安評估工具。③ 搭配下方 Upsell Motion 表格的 Quantity % / Price %，判斷 ARR 成長主要來自「席位數量增加」還是「方案升級提價」。
+      </div>
+    </div>
+  </details>
+
+  <!-- KPI Row 3: Upsell Rates ARR -->
+  <div class="flex gap-4 mb-3">
+    <div class="kpi-box flex-1">
+      <div class="kpi-title">Upsell Rates (ARR)</div>
+      <div class="flex gap-5 flex-wrap">
+        <div class="kpi-item" style="min-width:90px">
+          <div class="kpi-value" id="kpi-otm-rate">--</div>
+          <div class="kpi-label">O to M Rate</div>
+        </div>
+        <div class="kpi-item" style="min-width:90px">
+          <div class="kpi-value" id="kpi-otm-dollar">--</div>
+          <div class="kpi-label">O to M Upsell $</div>
+        </div>
+        <div class="kpi-item" style="min-width:90px">
+          <div class="kpi-value" id="kpi-me35-rate">--</div>
+          <div class="kpi-label">ME3→ME5 Rate</div>
+        </div>
+        <div class="kpi-item" style="min-width:90px">
+          <div class="kpi-value" id="kpi-me35-dollar">--</div>
+          <div class="kpi-label">ME3→ME5 Upsell $</div>
+        </div>
+        <div class="kpi-item" style="min-width:90px">
+          <div class="kpi-value" id="kpi-bb-rate">--</div>
+          <div class="kpi-label">BB→BS/BP Rate</div>
+        </div>
+        <div class="kpi-item" style="min-width:90px">
+          <div class="kpi-value" id="kpi-bs-rate">--</div>
+          <div class="kpi-label">BS→BP Rate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="ap3" class="ap ap-hide"></div>
+
+  <details class="info-block">
+    <summary>📖 Copilot 指標 — 定義、縮寫說明與分析建議</summary>
+    <div class="info-content">
+      <h4>📌 縮寫對照</h4>
+      <div class="abbr-grid">
+        <span class="ia">Copilot</span><span>Microsoft 365 Copilot｜<strong>微軟 AI 助理整合服務</strong>：以 GPT-4 為基礎，整合 Teams、Word、Excel、Outlook 等 M365 應用，須額外購買授權（需持有符合資格的底層授權）</span>
+        <span class="ia">Attach Rate</span><span><strong>附掛率</strong>：在可購買 Copilot 的到期席位中，實際購買 Copilot 席位的比例；代表 AI 授權的轉換效率與市場滲透率</span>
+        <span class="ia">Eligible Seats</span><span><strong>可購資格席位數</strong>：持有符合前提授權（M365 E3 / E5 / BP / BS / BB 等）、具備購買 Copilot 資格的到期席位總數；代表潛在市場規模</span>
+        <span class="ia">Accounts w/ Copilot</span><span><strong>已購 Copilot 客戶數</strong>：本篩選期間內有 Copilot 席位新購或續購的客戶帳號數量</span>
+        <span class="ia">POC</span><span>Proof of Concept｜<strong>概念驗證</strong>：提供試用環境讓客戶體驗 AI 功能，是推廣 Copilot 的常見策略</span>
+      </div>
+      <div class="info-note">
+        <strong>📊 分析重點：</strong>Copilot 是目前微軟單價最高的附加授權之一，Attach Rate 直接影響 ARR 成長潛力。Eligible Seats 代表潛在市場規模；若 Eligible Seats 大但 Attach Rate 低，表示有大量未開發 AI 商機。Accounts w/ Copilot 少但 Seats 多，代表集中在少數大型客戶採購，存在客戶集中風險。
+      </div>
+      <div class="info-tip">
+        <strong>✅ 檢討建議：</strong>① Attach Rate &lt; 5% → 規劃 Copilot 試用計畫（POC）或 Demo 活動，讓客戶親身體驗 AI 對生產力的實際提升。② 追蹤「已購 Copilot 客戶」的整體續約率，確認 Copilot 是否有助提高客戶黏著度與留客率（Stickiness）。③ Eligible Seats 成長但 Attach Rate 未提升 → 代表基礎授權在擴增，但 AI 升級未跟上，需加強 Copilot 業務推廣。
+      </div>
+    </div>
+  </details>
+
+  <!-- KPI Row 4: Upsell Seats + Copilot -->
+  <div class="flex gap-4 mb-3">
+    <div class="kpi-box flex-1">
+      <div class="kpi-title">Upsell Rates (Seats)</div>
+      <div class="flex gap-5">
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-otm-seats">--</div>
+          <div class="kpi-label">O to M (Seats)</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-me35-seats">--</div>
+          <div class="kpi-label">ME3→ME5 (Seats)</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-bb-seats">--</div>
+          <div class="kpi-label">BB→BS/BP (Seats)</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-bs-seats">--</div>
+          <div class="kpi-label">BS→BP (Seats)</div>
+        </div>
+      </div>
+    </div>
+    <div class="kpi-box flex-1" style="border-left:3px solid #7c3aed">
+      <div class="kpi-title" style="color:#6b21a8">&#129504; Copilot</div>
+      <div class="flex gap-5">
+        <div class="kpi-item">
+          <div class="kpi-value text-purple-700" id="kpi-copilot-seats">--</div>
+          <div class="kpi-label">Renewal Copilot Seats</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-copilot-accounts">--</div>
+          <div class="kpi-label">Accounts w/ Copilot</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value text-purple-700" id="kpi-copilot-rate">--</div>
+          <div class="kpi-label">Copilot Attach Rate %</div>
+        </div>
+        <div class="kpi-item">
+          <div class="kpi-value" id="kpi-copilot-eligible">--</div>
+          <div class="kpi-label">Copilot Eligible Seats</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="ap4" class="ap ap-hide"></div>
+
+  <!-- Block 5: Chart info -->
+  <details class="info-block">
+    <summary>📖 Revenue Performance 圖表 — 元素說明與分析建議</summary>
+    <div class="info-content">
+      <h4>📌 圖表元素說明</h4>
+      <div class="abbr-grid">
+        <span class="ia">At-Entry Expiration</span><span>（淺灰長條）到期初始 ARR：各月份到期訂閱在訂閱期「開始時」的年化訂閱金額，反映原始合約規模</span>
+        <span class="ia">At-Exit Expiration</span><span>（深灰長條）到期結束 ARR：各月份到期訂閱在「到期前一刻」的實際 ARR；若低於淺灰長條，代表訂閱期間曾發生 ARR 向下調整（降級或席位減少）</span>
+        <span class="ia">At-Entry Renewal</span><span>（藍色長條）續約初始 ARR：該月已確認續約的訂閱，在新一期「開始時」的 ARR；高於 At-Exit 表示有Upsell，低於則有Downsell</span>
+        <span class="ia">Annualized Renewal Rate</span><span>（藍色實線折線）以當月 At-Exit Expiration 為分母計算的月別續約率，反映當月實際到期的成功留存比例</span>
+        <span class="ia">TTM Annualized Renewal Rate</span><span>（深藍虛線折線）以當月 At-Entry Expiration 為分母、往前滾動 12 個月計算的續約率；較平滑，排除單月波動，更能代表長期健康趨勢</span>
+      </div>
+      <div class="info-note">📊 <strong>分析重點：</strong>重點觀察「At-Entry vs At-Exit 灰色長條差距」——差距愈大代表訂閱期間 ARR 侵蝕愈嚴重，即使最終續約也已流失部分金額。若藍色長條持續高於深灰長條（At-Exit），表示 Upsell 成效良好；反之則有 Downsell 壓力。兩條折線的交叉或持續分叉，也是續約動能轉變的預警訊號。</div>
+      <div class="info-tip">✅ <strong>檢討建議：</strong>① 若 Annualized Rate 連續 3 個月下滑，立即觸發客戶健康度複查（Health Check），鎖定高風險到期帳號；② 若 At-Exit 明顯低於 At-Entry（灰色長條差距 &gt;5%），需調查是否有系統性降級行為，並評估是否調整承諾折扣政策；③ TTM Rate 作為季報/年報對外溝通的標準指標，短期 Annualized Rate 可用於內部操作預警。</div>
+    </div>
+  </details>
+
+  <!-- Chart -->
+  <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-gray-800">Revenue Performance - At-Renewal + Mid-Term</h3>
+      <div class="flex items-center gap-3">
+      <button class="btn-xs" onclick="exportChartPng()" title="下載圖表 PNG">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        PNG
+      </button>
+      <div class="flex items-center gap-4 text-xs text-gray-500">
+        <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#bdbdbd"></span> At-Entry Expiration</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#616161"></span> At-Exit Expiration</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded" style="background:#1976d2"></span> At-Entry Renewal</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-3 h-2 border-t-2 border-blue-400"></span> Annualized Renewal Rate</span>
+        <span class="flex items-center gap-1"><span class="inline-block w-3 h-2 border-t-2 border-dashed border-blue-900"></span> TTM Annualized Renewal Rate</span>
+      </div>
+      </div>
+    </div>
+    <canvas id="revenueChart"></canvas>
+  </div>
+  <div id="ap5" class="ap ap-hide"></div>
+
+  <!-- Recapture Driver Table -->
+  <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="cf-bar" id="cf-bar">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+      <span id="cf-text" class="flex-1"></span>
+      <button onclick="clearCrossFilter()" class="font-bold text-base leading-none text-blue-300 hover:text-blue-800 px-1">×</button>
+    </div>
+    <!-- Block 6: Table info -->
+    <details class="info-block" style="margin:10px 16px 0;">
+      <summary>📖 明細表格 — 欄位說明、操作方式與分析建議</summary>
+      <div class="info-content">
+        <h4>📌 通用欄位說明</h4>
+        <div class="abbr-grid">
+          <span class="ia">Entry Exp.</span><span>（At-Entry Expiration ARR）到期訂閱在訂閱期「開始時」的年化訂閱金額（$K）</span>
+          <span class="ia">Exit Exp.</span><span>（At-Exit Expiration ARR）到期訂閱在到期前一刻的年化金額（$K）；Entry vs Exit 差即為期間 ARR 侵蝕</span>
+          <span class="ia">Renewal $</span><span>（At-Entry Renewal ARR）已確認續約在新一期開始時的年化金額（$K）</span>
+          <span class="ia">Ann. Rate</span><span>（Annualized Renewal Rate）以 Exit Exp. 為分母的月別續約率（%）；反映當期有效留存</span>
+          <span class="ia">TTM Rate</span><span>（TTM Annualized Renewal Rate）以 Entry Exp. 為分母的滾動 12 個月續約率（%）；平滑指標，適合長期比較</span>
+          <span class="ia">TTM ARR Growth</span><span>過去 12 個月 ARR 淨變化率（%）；正值代表在管客戶 ARR 成長，負值代表整體規模萎縮</span>
+          <span class="ia">Qty%</span><span>（Quantity %）席位數量對續約 ARR 差異的貢獻比例；正值＝席位增加帶動 ARR 成長</span>
+          <span class="ia">Price%</span><span>（Price %）單價變動對續約 ARR 差異的貢獻比例；正值＝平均單價提升（如方案升級）</span>
+          <span class="ia">Renewal Cnt</span><span>本期已完成續約的訂閱筆數</span>
+          <span class="ia">Seats Rate</span><span>已續約席位數 ÷ 到期席位數（%）；與 ARR Rate 對比可判斷是純席位流失還是方案降級</span>
+        </div>
+        <h4>🖱️ 操作方式</h4>
+        <ul style="padding-left:14px;margin:0;line-height:1.8">
+          <li><strong>點擊欄位標題</strong>可排序（▲ 升序 / ▼ 降序）；再次點擊切換方向</li>
+          <li><strong>點擊任意資料列</strong>可啟動「交叉篩選」——KPI 卡片與圖表將即時反映該維度的數據；再次點擊或按上方 × 可清除</li>
+          <li><strong>點擊列首的 🔍 圖示</strong>可開啟「訂閱明細」彈窗，檢視組成該列的所有訂閱期詳情，並可單獨匯出 Excel</li>
+        </ul>
+        <h4>📊 各分頁分析重點</h4>
+        <div class="info-note" style="margin-top:6px">
+          <strong>Direct/Indirect Partner（通路）：</strong>對比 Direct（直銷）與 Indirect（間接通路）的續約率與 TTM 成長差異，若間接通路 Ann. Rate 明顯偏低，需檢查 Partner 的客戶管理能力或報價策略。Qty% 為負且 Price% 為正，通常代表席位縮減但方案升級（健康 Upsell 訊號）。
+        </div>
+        <div class="info-note" style="margin-top:6px">
+          <strong>Product（產品）：</strong>觀察各產品線的 Entry vs Exit 侵蝕幅度，侵蝕高的產品可能存在客戶黏著度問題或市場替代壓力。BP（Business Premium）與 ME5 為中高端方案，若其 Seats Rate 明顯低於 ARR Rate，表示客戶正在降級而非減少席位。
+        </div>
+        <div class="info-note" style="margin-top:6px">
+          <strong>Area（銷售團隊/區域）：</strong>跨區域比較可識別最佳實踐（Best Practice）與落後區域，TTM ARR Growth 為負的區域應優先進行客戶健康度盤點，並評估是否需要調整Territory 或加強 CSM 支援密度。
+        </div>
+        <div class="info-tip">✅ <strong>綜合建議：</strong>建議搭配時間篩選器觀察 QoQ（季度環比）趨勢，重點追蹤 Ann. Rate &lt;80% 的分群，並將 Qty% 與 Price% 拆解用於判斷 ARR 差異的根本原因（Volume vs Pricing），以便制定差異化的客戶挽留或升級策略。</div>
+      </div>
+    </details>
+    <div class="px-4 pt-4 border-b border-gray-200">
+      <div class="flex gap-0.5 items-end">
+        <button class="tab-btn active" onclick="switchTab('upsell-motion')" id="tab-upsell-motion">Upsell Motion</button>
+        <button class="tab-btn" onclick="switchTab('partner')" id="tab-partner">Direct/Indirect Partner</button>
+        <button class="tab-btn" onclick="switchTab('product')" id="tab-product">Product</button>
+        <button class="tab-btn" onclick="switchTab('area')" id="tab-area">Area</button>
+      </div>
+    </div>
+
+    <div class="tab-content active p-0" id="tc-upsell-motion">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="table-header">
+            <tr>
+              <th class="sticky left-0 bg-gray-50 min-w-[160px]">Upsell Summary</th>
+              <th>Entry Exp.</th>
+              <th>Exit Exp.</th>
+              <th>Renewal $</th>
+              <th>Annualized<br>Renewal Rate</th>
+              <th>TTM Renewal Rate</th>
+              <th>TTM ARR<br>Growth ($)</th>
+              <th>Quantity</th>
+              <th>Quantity %</th>
+              <th>Price</th>
+              <th>Price %</th>
+            </tr>
+          </thead>
+          <tbody id="upsell-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content p-0" id="tc-partner">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="table-header">
+            <tr>
+              <th class="sticky left-0 bg-gray-50 min-w-[180px] sortable" onclick="sortGbTable('partner','name')">Partner <span class="sort-icon" id="si-partner-name">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','entryExp')">Entry Exp. <span class="sort-icon active" id="si-partner-entryExp">▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','exitExp')">Exit Exp. <span class="sort-icon" id="si-partner-exitExp">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','renewal')">Renewal $ <span class="sort-icon" id="si-partner-renewal">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','annRate')">Annualized<br>Renewal Rate <span class="sort-icon" id="si-partner-annRate">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','ttmRate')">TTM Renewal Rate <span class="sort-icon" id="si-partner-ttmRate">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','ttmGrowth')">TTM ARR<br>Growth ($) <span class="sort-icon" id="si-partner-ttmGrowth">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','count')">Renewal<br>Count <span class="sort-icon" id="si-partner-count">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('partner','seatsRate')">Seats<br>Renewal Rate <span class="sort-icon" id="si-partner-seatsRate">▲▼</span></th>
+            </tr>
+          </thead>
+          <tbody id="partner-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content p-0" id="tc-product">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="table-header">
+            <tr>
+              <th class="sticky left-0 bg-gray-50 min-w-[220px] sortable" onclick="sortGbTable('product','name')">Product (From) <span class="sort-icon" id="si-product-name">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','entryExp')">Entry Exp. <span class="sort-icon active" id="si-product-entryExp">▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','exitExp')">Exit Exp. <span class="sort-icon" id="si-product-exitExp">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','renewal')">Renewal $ <span class="sort-icon" id="si-product-renewal">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','annRate')">Annualized<br>Renewal Rate <span class="sort-icon" id="si-product-annRate">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','ttmRate')">TTM Renewal Rate <span class="sort-icon" id="si-product-ttmRate">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','ttmGrowth')">TTM ARR<br>Growth ($) <span class="sort-icon" id="si-product-ttmGrowth">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','count')">Renewal<br>Count <span class="sort-icon" id="si-product-count">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('product','seatsRate')">Seats<br>Renewal Rate <span class="sort-icon" id="si-product-seatsRate">▲▼</span></th>
+            </tr>
+          </thead>
+          <tbody id="product-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content p-0" id="tc-area">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="table-header">
+            <tr>
+              <th class="sticky left-0 bg-gray-50 min-w-[180px] sortable" onclick="sortGbTable('area','name')">Area / Team <span class="sort-icon" id="si-area-name">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','entryExp')">Entry Exp. <span class="sort-icon active" id="si-area-entryExp">▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','exitExp')">Exit Exp. <span class="sort-icon" id="si-area-exitExp">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','renewal')">Renewal $ <span class="sort-icon" id="si-area-renewal">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','annRate')">Annualized<br>Renewal Rate <span class="sort-icon" id="si-area-annRate">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','ttmRate')">TTM Renewal Rate <span class="sort-icon" id="si-area-ttmRate">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','ttmGrowth')">TTM ARR<br>Growth ($) <span class="sort-icon" id="si-area-ttmGrowth">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','count')">Renewal<br>Count <span class="sort-icon" id="si-area-count">▲▼</span></th>
+              <th class="sortable" onclick="sortGbTable('area','seatsRate')">Seats<br>Renewal Rate <span class="sort-icon" id="si-area-seatsRate">▲▼</span></th>
+            </tr>
+          </thead>
+          <tbody id="area-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="ap6" class="ap ap-hide" style="border-radius:0;margin:0;border-left:none;border-right:none;border-bottom:none"></div>
+  </div>
+
+</div><!-- end dashboard -->
+
+<!-- Drill-through Modal -->
+<div id="drill-modal">
+  <div id="drill-panel">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 bg-gray-50" style="border-radius:10px 10px 0 0">
+      <div>
+        <h3 class="font-semibold text-gray-800 text-sm" id="drill-title">訂閱明細</h3>
+        <p class="text-xs text-gray-500 mt-0.5" id="drill-subtitle"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-xs" onclick="exportDrillExcel()" title="匯出此明細">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          匯出 Excel
+        </button>
+        <button onclick="closeDrill()" class="text-gray-400 hover:text-gray-700 text-xl font-light leading-none w-7 h-7 flex items-center justify-center">×</button>
+      </div>
+    </div>
+    <div class="overflow-auto flex-1 text-sm" id="drill-panel-body">
+      <table class="w-full border-collapse" id="drill-table">
+        <thead>
+          <tr>
+            <th class="dth" style="text-align:left;min-width:140px">SubID</th>
+            <th class="dth" style="text-align:left;min-width:130px">Customer</th>
+            <th class="dth" style="text-align:left;min-width:120px">Partner</th>
+            <th class="dth" style="text-align:left;min-width:130px">Product (From)</th>
+            <th class="dth" style="min-width:130px">→ Product (To)</th>
+            <th class="dth" style="min-width:80px">Exp. Month</th>
+            <th class="dth" style="min-width:50px">FY</th>
+            <th class="dth" style="min-width:65px">Renewed?</th>
+            <th class="dth" style="min-width:60px">On-Time?</th>
+            <th class="dth" style="min-width:110px">Upsell Motion</th>
+            <th class="dth" style="min-width:95px">Exit ARR</th>
+            <th class="dth" style="min-width:95px">Renewal ARR</th>
+            <th class="dth" style="min-width:70px">Exit Seats</th>
+            <th class="dth" style="min-width:80px">Renewal Seats</th>
+          </tr>
+        </thead>
+        <tbody id="drill-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========================= GLOBALS =========================
+let allSubPeriods = [];
+let filteredSubPeriods = [];
+let revenueChart = null;
+let expandedGroups = { 'Expansion': false, 'Upsell': true };
+let selectedExpMonths = new Set();   // empty = all months selected
+let expMonthData = [];               // [{key, label, fyLabel, fyQLabel}]
+
+// ── Table sort state ──────────────────────────────────────────────────────────
+let tableSortState = {
+  partner: { col: 'entryExp', asc: false },
+  product: { col: 'entryExp', asc: false },
+  area:    { col: 'entryExp', asc: false }
+};
+
+// ── Cross-filter state ────────────────────────────────────────────────────────
+let crossFilter = { dim: null, value: null };
+
+// ── Drill-through data store ──────────────────────────────────────────────────
+let _dm = {};     // int → {title, items}
+let _dmIdx = 0;
+let _dmCurrent = null;  // items shown in open modal
+
+// ========================= EXP MONTH CUSTOM DROPDOWN =========================
+function toggleExpDropdown(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('exp-month-dropdown');
+  dd.classList.toggle('hidden');
+}
+
+document.addEventListener('click', (e) => {
+  const wrapper = document.getElementById('exp-month-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    document.getElementById('exp-month-dropdown')?.classList.add('hidden');
+  }
+});
+
+function updateExpMonthLabel() {
+  const label = document.getElementById('exp-month-label');
+  if (!label) return;
+  label.textContent = selectedExpMonths.size === 0 ? '全部' : `${selectedExpMonths.size} 已選取`;
+}
+
+function selectAllExpMonths() {
+  expMonthData.forEach(m => selectedExpMonths.add(m.key));
+  renderExpMonthList();
+  updateExpMonthLabel();
+  applyFilters();
+}
+
+function clearAllExpMonths() {
+  selectedExpMonths.clear();
+  renderExpMonthList();
+  updateExpMonthLabel();
+  applyFilters();
+}
+
+function toggleExpMonth(key) {
+  selectedExpMonths.has(key) ? selectedExpMonths.delete(key) : selectedExpMonths.add(key);
+  renderExpMonthList();
+  updateExpMonthLabel();
+  applyFilters();
+}
+
+function toggleExpFY(fyLabel) {
+  const keys = expMonthData.filter(m => m.fyLabel === fyLabel).map(m => m.key);
+  const allChecked = keys.every(k => selectedExpMonths.has(k));
+  keys.forEach(k => allChecked ? selectedExpMonths.delete(k) : selectedExpMonths.add(k));
+  renderExpMonthList();
+  updateExpMonthLabel();
+  applyFilters();
+}
+
+function toggleExpFYQ(fyQLabel) {
+  const keys = expMonthData.filter(m => m.fyQLabel === fyQLabel).map(m => m.key);
+  const allChecked = keys.every(k => selectedExpMonths.has(k));
+  keys.forEach(k => allChecked ? selectedExpMonths.delete(k) : selectedExpMonths.add(k));
+  renderExpMonthList();
+  updateExpMonthLabel();
+  applyFilters();
+}
+
+function renderExpMonthList() {
+  const list = document.getElementById('exp-month-list');
+  if (!list) return;
+
+  const fyMap = {};
+  expMonthData.forEach(m => {
+    if (!fyMap[m.fyLabel]) fyMap[m.fyLabel] = {};
+    if (!fyMap[m.fyLabel][m.fyQLabel]) fyMap[m.fyLabel][m.fyQLabel] = [];
+    fyMap[m.fyLabel][m.fyQLabel].push(m);
+  });
+
+  list.innerHTML = '';
+  Object.entries(fyMap).sort().forEach(([fy, quarters]) => {
+    const fyKeys = expMonthData.filter(m => m.fyLabel === fy).map(m => m.key);
+    const fyAll = fyKeys.every(k => selectedExpMonths.has(k));
+    const fySome = fyKeys.some(k => selectedExpMonths.has(k));
+
+    // FY header row
+    const fyDiv = document.createElement('div');
+    fyDiv.className = 'flex items-center px-2 py-1 cursor-pointer hover:bg-gray-50 select-none';
+    fyDiv.innerHTML = `
+      <input type="checkbox" id="fy-cb-${fy}" class="mr-1.5 h-3 w-3 accent-blue-600"
+             onchange="toggleExpFY('${fy}')" onclick="event.stopPropagation()"
+             ${fyAll ? 'checked' : ''}>
+      <label for="fy-cb-${fy}" class="text-xs font-bold text-gray-700 cursor-pointer">${fy}</label>
+    `;
+    const fyCb = fyDiv.querySelector('input');
+    if (fySome && !fyAll) fyCb.indeterminate = true;
+    list.appendChild(fyDiv);
+
+    // FYQ rows
+    Object.entries(quarters).sort().forEach(([fyQ, months]) => {
+      const qKeys = months.map(m => m.key);
+      const qAll = qKeys.every(k => selectedExpMonths.has(k));
+      const qSome = qKeys.some(k => selectedExpMonths.has(k));
+
+      const qDiv = document.createElement('div');
+      qDiv.className = 'flex items-center pl-5 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 select-none';
+      qDiv.innerHTML = `
+        <input type="checkbox" id="fyq-cb-${fyQ}" class="mr-1.5 h-3 w-3 accent-blue-600"
+               onchange="toggleExpFYQ('${fyQ}')" onclick="event.stopPropagation()"
+               ${qAll ? 'checked' : ''}>
+        <label for="fyq-cb-${fyQ}" class="text-xs font-medium text-gray-500 cursor-pointer">${fyQ}</label>
+      `;
+      const qCb = qDiv.querySelector('input');
+      if (qSome && !qAll) qCb.indeterminate = true;
+      list.appendChild(qDiv);
+
+      // Individual month rows
+      months.forEach(m => {
+        const checked = selectedExpMonths.has(m.key);
+        const mDiv = document.createElement('div');
+        mDiv.className = `flex items-center pl-9 pr-2 py-0.5 cursor-pointer select-none ${checked ? 'bg-blue-50' : 'hover:bg-gray-50'}`;
+        mDiv.innerHTML = `
+          <input type="checkbox" id="m-cb-${m.key}" class="mr-1.5 h-3 w-3 accent-blue-600"
+                 onchange="toggleExpMonth('${m.key}')" onclick="event.stopPropagation()"
+                 ${checked ? 'checked' : ''}>
+          <label for="m-cb-${m.key}" class="text-xs cursor-pointer ${checked ? 'text-blue-700 font-medium' : 'text-gray-600'}">${m.fyQLabel}&nbsp;${m.label}</label>
+        `;
+        list.appendChild(mDiv);
+      });
+    });
+  });
+}
+
+// ========================= DATE UTILS =========================
+function parseExcelDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  if (typeof val === 'number') {
+    // Excel serial date
+    const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    return d;
+  }
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d) ? null : d;
+  }
+  return null;
+}
+
+function addDays(date, n) {
+  if (!date) return null;
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function getMonthKey(date) {
+  if (!date) return null;
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+
+function getMonthLabel(key) {
+  if (!key) return '';
+  const [y, m] = key.split('-');
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return `${months[parseInt(m)-1]}, ${y}`;
+}
+
+function getMsFY(date) {
+  if (!date) return null;
+  const m = date.getMonth(); // 0-indexed, 6=July
+  const y = date.getFullYear();
+  return m >= 6 ? y + 1 : y;
+}
+
+function getMsFYQ(date) {
+  if (!date) return null;
+  const m = date.getMonth();
+  if (m >= 6 && m <= 8) return 'Q1';
+  if (m >= 9) return 'Q2';
+  if (m >= 0 && m <= 2) return 'Q3';
+  return 'Q4';
+}
+
+function getBillingType(name) {
+  if (!name) return 'Unknown';
+  if (name.includes('月約') || name.includes('月繳')) return 'Monthly';
+  if (name.includes('3年')) return '3-Year';
+  return 'Annual';
+}
+
+// ========================= PRODUCT CLASSIFICATION =========================
+function getProductGroup(name) {
+  if (!name) return 'Other';
+  if (/M365 Copilot|Microsoft 365 Copilot/i.test(name)) return 'M365 Copilot';
+  if (/Business Premium/i.test(name)) return 'M365 Business Premium';
+  if (/Business Standard.*no Teams/i.test(name)) return 'M365 Business Standard (no Teams)';
+  if (/Business Standard/i.test(name)) return 'M365 Business Standard';
+  if (/Business Basic/i.test(name)) return 'M365 Business Basic';
+  if (/Apps for enterprise/i.test(name)) return 'M365 Apps Enterprise';
+  if (/Apps for business/i.test(name)) return 'M365 Apps Business';
+  if (/E5/i.test(name) && /365/i.test(name)) return 'M365 E5';
+  if (/E3/i.test(name) && /365/i.test(name)) return 'M365 E3';
+  if (/Office 365 E5/i.test(name)) return 'O365 E5';
+  if (/Office 365 E3/i.test(name)) return 'O365 E3';
+  if (/Office 365 E1/i.test(name)) return 'O365 E1';
+  if (/F1/i.test(name)) return 'M365 F1';
+  if (/F3/i.test(name)) return 'M365 F3';
+  if (/Exchange Online.*Plan 2/i.test(name)) return 'Exchange Online Plan 2';
+  if (/Exchange Online/i.test(name)) return 'Exchange Online Plan 1';
+  if (/Teams Essentials/i.test(name)) return 'Teams Essentials';
+  if (/Power BI Pro/i.test(name)) return 'Power BI Pro';
+  if (/Project Plan/i.test(name)) return 'Project';
+  if (/Visio/i.test(name)) return 'Visio';
+  return 'Other';
+}
+
+// Upsell motion classification (comparing orig product group to new product group)
+function classifyUpsellMotion(origProduct, newProduct, origSeats, newSeats) {
+  if (!origProduct || !newProduct) return 'Expansion';
+  // Product groups use prefixes: "O365 *", "M365 *"
+  const isO365 = (n) => /^O365/i.test(n) || /Office 365/i.test(n);
+  const isM365 = (n) => /^M365/i.test(n) || /Microsoft 365/i.test(n);
+  const isE3  = (n) => /\bE3\b/i.test(n);
+  const isE5  = (n) => /\bE5\b/i.test(n);
+  const isBasic    = (n) => /Basic/i.test(n);
+  const isStandard = (n) => /Standard/i.test(n);
+  const isPremium  = (n) => /Premium/i.test(n);
+
+  if (isO365(origProduct) && isM365(newProduct)) return 'O to M';
+  if (isE3(origProduct) && isE5(newProduct)) return 'ME3 to ME5';
+  if (isBasic(origProduct) && (isPremium(newProduct) || isStandard(newProduct))) return 'Basic to Prem. or Std.';
+  if (isStandard(origProduct) && isPremium(newProduct)) return 'Std. to Prem.';
+  if (origProduct !== newProduct) return 'Other Upsell';
+  return 'Expansion';
+}
+
+// ========================= DATA PROCESSING =========================
+function processRawData(rows) {
+  // Normalize rows
+  const normalized = rows.map(r => ({
+    orderDate: parseExcelDate(r['訂單下單日']),
+    expirationDate: parseExcelDate(r['訂閱到期日']),
+    dealer: (r['經銷商'] || r['経銷商'] || '').trim(),
+    customer: (r['最終客戶'] || '').trim(),
+    customerId: r['客戶微軟ID'] || '',
+    segment: (r['資格'] || '').trim(),
+    productName: (r['商品名稱'] || '').trim(),
+    quantity: parseFloat(r['數量']) || 0,
+    unitPrice: parseFloat(r['成交單價未稅']) || 0,
+    totalPrice: parseFloat(r['成交價未稅小計']) || 0,
+    salesTeam: (r['展碁業務部門'] || '').trim(),
+    salesPerson: (r['展碁業務'] || '').trim(),
+    internalTeam: (r['展碁內勤部門'] || '').trim(),
+    subId: (r['微軟SubID'] || r['訂閱識別碼'] || '').toString().trim(),
+    orderId: (r['微軟Order ID'] || '').toString().trim(),
+    action: (r['訂閱動作'] || '').trim(),
+    origSubId: (r['原訂閱之微軟SubID'] || '').toString().trim(),
+    origOrderDate: parseExcelDate(r['原訂閱之訂單下單日']),
+    origExpirationDate: parseExcelDate(r['原訂閱之訂單到期日']),
+    orderStatus: (r['訂單狀態'] || '').trim(),
+    returnDate: parseExcelDate(r['退貨日']),
+    billingType: getBillingType(r['商品名稱'] || ''),
+    productGroup: getProductGroup(r['商品名稱'] || ''),
+  }));
+
+  // Compute ARR per order
+  normalized.forEach(r => {
+    r.arr = r.unitPrice * 12 * r.quantity;
+  });
+
+  // Build subscription index by subId
+  const subIndex = {};
+  normalized.forEach(r => {
+    if (r.subId) {
+      if (!subIndex[r.subId]) subIndex[r.subId] = [];
+      subIndex[r.subId].push(r);
+    }
+  });
+  Object.values(subIndex).forEach(orders => {
+    orders.sort((a, b) => (a.orderDate||0) - (b.orderDate||0));
+  });
+
+  // Build set of SubIDs that have been renewed
+  const renewalsByOrigSubId = {}; // origSubId -> renewal row
+  normalized.forEach(r => {
+    if (r.action === '續約' && r.origSubId) {
+      if (!renewalsByOrigSubId[r.origSubId]) {
+        renewalsByOrigSubId[r.origSubId] = r;
+      }
+    }
+  });
+
+  // Build subscription periods
+  const subPeriods = [];
+  const seenSubIds = new Set();
+
+  Object.entries(subIndex).forEach(([subId, orders]) => {
+    if (!subId || subId === 'undefined' || subId === '') return;
+    if (seenSubIds.has(subId)) return;
+    seenSubIds.add(subId);
+
+    // Filter out returns
+    const validOrders = orders.filter(o => !o.returnDate && o.orderStatus !== '退貨');
+    if (validOrders.length === 0) return;
+
+    const firstOrder = validOrders[0];
+    const lastOrder = validOrders[validOrders.length - 1];
+
+    const expirationDate = lastOrder.expirationDate || firstOrder.expirationDate;
+    const expDatePlus1 = addDays(expirationDate, 1);
+    const expMonthKey = getMonthKey(expDatePlus1);
+    const expMonthDate = expDatePlus1;
+
+    // Check if renewed
+    const renewalRow = renewalsByOrigSubId[subId];
+    const isRenewed = renewalRow ? 'Yes' : 'No';
+
+    // Expiration metrics
+    const expirationInitialARR = firstOrder.arr;
+    const expirationEndingARR = lastOrder.arr;
+    const expirationInitialSeats = firstOrder.quantity;
+    const expirationEndingSeats = lastOrder.quantity;
+    const expirationBilledRevenue = validOrders.reduce((s, o) => s + o.totalPrice, 0);
+
+    // Renewal metrics
+    const renewalInitialARR = renewalRow ? renewalRow.arr : 0;
+    const renewalInitialSeats = renewalRow ? renewalRow.quantity : 0;
+    const renewalBilledRevenue = renewalRow ? renewalRow.totalPrice : 0;
+
+    // Upsell motion
+    const origProduct = firstOrder.productGroup;
+    const newProduct = renewalRow ? renewalRow.productGroup : '';
+    const upsellMotion = isRenewed === 'Yes'
+      ? classifyUpsellMotion(origProduct, newProduct, expirationInitialSeats, renewalInitialSeats)
+      : 'N/A';
+    const upsellSummary = upsellMotion === 'Expansion' ? 'Expansion' : (upsellMotion === 'N/A' ? 'N/A' : 'Upsell');
+
+    // On-time: renewal order date <= expiration date
+    let onTime = null;
+    if (renewalRow) {
+      onTime = renewalRow.orderDate && expirationDate && renewalRow.orderDate <= expirationDate ? 'Yes' : 'No';
+    }
+
+    // FY info for expiration month
+    const fy = expMonthDate ? getMsFY(expMonthDate) : null;
+    const fyQ = expMonthDate ? getMsFYQ(expMonthDate) : null;
+    const fyLabel = fy ? `FY${String(fy).slice(-2)}` : '';
+    const fyQLabel = fyQ ? `${fyLabel}-${fyQ}` : '';
+
+    subPeriods.push({
+      subId,
+      isRenewed,
+      onTime,
+      expirationDate,
+      expMonthKey,
+      expMonthDate,
+      fyLabel,
+      fyQLabel,
+      expirationInitialARR,
+      expirationEndingARR,
+      expirationInitialSeats,
+      expirationEndingSeats,
+      expirationBilledRevenue,
+      renewalInitialARR,
+      renewalInitialSeats,
+      renewalBilledRevenue,
+      upsellMotion,
+      upsellSummary,
+      // Dimension attributes (from expiring subscription)
+      segment: firstOrder.segment,
+      dealerFrom: firstOrder.dealer,
+      productFrom: firstOrder.productGroup,
+      productNameFrom: firstOrder.productName,
+      salesTeam: firstOrder.salesTeam,
+      salesPerson: firstOrder.salesPerson,
+      internalTeam: firstOrder.internalTeam,
+      billingTypeFrom: firstOrder.billingType,
+      customer: firstOrder.customer,
+      // From renewal
+      dealerTo: renewalRow ? renewalRow.dealer : '',
+      partnerName: (renewalRow && renewalRow.dealer) ? renewalRow.dealer : firstOrder.dealer,
+      productTo: renewalRow ? renewalRow.productGroup : '',
+      productNameTo: renewalRow ? renewalRow.productName : '',
+      salesPersonTo: renewalRow ? renewalRow.salesPerson : '',
+      billingTypeTo: renewalRow ? renewalRow.billingType : '',
+    });
+  });
+
+  return subPeriods;
+}
+
+// ========================= FILTER OPTIONS =========================
+function buildFilterOptions(subPeriods) {
+  const opts = {
+    expMonths: new Map(),
+    geographies: new Set(),
+    segments: new Set(),
+    partnersTo: new Set(),
+    productsTo: new Set(),
+    billings: new Set(),
+    ams: new Set(),
+    partnersFrom: new Set(),
+    productsFrom: new Set(),
+    fys: new Set(),
+    upsellMotions: new Set(),
+    internalTeams: new Set(),
+  };
+
+  subPeriods.forEach(sp => {
+    if (sp.expMonthKey) {
+      opts.expMonths.set(sp.expMonthKey, {
+        label: getMonthLabel(sp.expMonthKey),
+        fyLabel: sp.fyLabel,
+        fyQLabel: sp.fyQLabel,
+      });
+    }
+    if (sp.salesTeam) opts.geographies.add(sp.salesTeam);
+    if (sp.segment) opts.segments.add(sp.segment);
+    if (sp.dealerTo) opts.partnersTo.add(sp.dealerTo);
+    if (sp.productTo) opts.productsTo.add(sp.productTo);
+    if (sp.billingTypeTo) opts.billings.add(sp.billingTypeTo);
+    if (sp.salesPerson) opts.ams.add(sp.salesPerson);
+    if (sp.dealerFrom) opts.partnersFrom.add(sp.dealerFrom);
+    if (sp.productFrom) opts.productsFrom.add(sp.productFrom);
+    if (sp.fyLabel) opts.fys.add(sp.fyLabel);
+    if (sp.upsellMotion && sp.upsellMotion !== 'N/A') opts.upsellMotions.add(sp.upsellMotion);
+    if (sp.internalTeam) opts.internalTeams.add(sp.internalTeam);
+  });
+
+  return opts;
+}
+
+function populateSelect(id, values, grouped=false) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部</option>';
+  if (Array.isArray(values)) {
+    values.sort().forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      if (v === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+  if (!cur) sel.value = '';
+}
+
+function populateExpMonthSelect(opts) {
+  const sorted = [...opts.expMonths.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  expMonthData = sorted.map(([key, info]) => ({
+    key,
+    label: info.label,
+    fyLabel: info.fyLabel || 'Other',
+    fyQLabel: info.fyQLabel || '',
+  }));
+  selectedExpMonths.clear();
+  renderExpMonthList();
+  updateExpMonthLabel();
+}
+
+// ========================= FILTER LOGIC =========================
+function applyFilters() {
+  const fGeo         = document.getElementById('f-geography').value;
+  const fSeg         = document.getElementById('f-segment').value;
+  const fPartnerTo   = document.getElementById('f-partner-to').value;
+  const fProdTo      = document.getElementById('f-product-to').value;
+  const fBilling     = document.getElementById('f-billing').value;
+  const fAm          = document.getElementById('f-am').value;
+  const fPartnerFrom = document.getElementById('f-partner-from').value;
+  const fProdFrom    = document.getElementById('f-product-from').value;
+  const fOntime      = document.getElementById('f-ontime').value;
+  const fRenewed     = document.getElementById('f-renewed').value;
+  const fFY          = document.getElementById('f-fy').value;
+  const fUpsell      = document.getElementById('f-upsell-motion').value;
+  const fTeam        = document.getElementById('f-internal-team').value;
+
+  filteredSubPeriods = allSubPeriods.filter(sp => {
+    if (selectedExpMonths.size > 0 && !selectedExpMonths.has(sp.expMonthKey)) return false;
+    if (fGeo && sp.salesTeam !== fGeo) return false;
+    if (fSeg && sp.segment !== fSeg) return false;
+    if (fPartnerTo && sp.dealerTo !== fPartnerTo) return false;
+    if (fProdTo && sp.productTo !== fProdTo) return false;
+    if (fBilling && sp.billingTypeTo !== fBilling) return false;
+    if (fAm && sp.salesPerson !== fAm) return false;
+    if (fPartnerFrom && sp.dealerFrom !== fPartnerFrom) return false;
+    if (fProdFrom && sp.productFrom !== fProdFrom) return false;
+    if (fOntime && sp.onTime !== fOntime) return false;
+    if (fRenewed && sp.isRenewed !== fRenewed) return false;
+    if (fFY && sp.fyLabel !== fFY) return false;
+    // Upsell Motion: keep all non-renewed subs (N/A) in denominator; only filter renewed ones
+    if (fUpsell && sp.isRenewed === 'Yes' && sp.upsellMotion !== fUpsell) return false;
+    if (fTeam && sp.internalTeam !== fTeam) return false;
+    return true;
+  });
+
+  updateDashboard();
+}
+
+// ========================= METRICS COMPUTATION =========================
+function computeKPIs(data) {
+  const renewed = data.filter(sp => sp.isRenewed === 'Yes');
+
+  // At-Renewal (Ending ARR based)
+  const sumRenewalInitialARR = renewed.reduce((s, sp) => s + sp.renewalInitialARR, 0);
+  const sumExpEndingARR_renewed = renewed.reduce((s, sp) => s + sp.expirationEndingARR, 0);
+  const sumExpEndingARR_all = data.reduce((s, sp) => s + sp.expirationEndingARR, 0);
+  const sumRenewalInitialSeats = renewed.reduce((s, sp) => s + sp.renewalInitialSeats, 0);
+  const sumExpEndingSeats_renewed = renewed.reduce((s, sp) => s + sp.expirationEndingSeats, 0);
+  const sumExpEndingSeats_all = data.reduce((s, sp) => s + sp.expirationEndingSeats, 0);
+
+  const annualizedRecaptureRate = sumExpEndingARR_renewed > 0 ? sumRenewalInitialARR / sumExpEndingARR_renewed : null;
+  const annualizedRenewalRate = sumExpEndingARR_all > 0 ? sumRenewalInitialARR / sumExpEndingARR_all : null;
+  const seatsRenewalRate = sumExpEndingSeats_all > 0 ? sumRenewalInitialSeats / sumExpEndingSeats_all : null;
+
+  // TTM (Initial ARR based)
+  const sumExpInitialARR_renewed = renewed.reduce((s, sp) => s + sp.expirationInitialARR, 0);
+  const sumExpInitialARR_all = data.reduce((s, sp) => s + sp.expirationInitialARR, 0);
+  const sumExpInitialSeats_all = data.reduce((s, sp) => s + sp.expirationInitialSeats, 0);
+  const sumExpInitialSeats_renewed = renewed.reduce((s, sp) => s + sp.expirationInitialSeats, 0);
+
+  const ttmRecaptureRate = sumExpInitialARR_renewed > 0 ? sumRenewalInitialARR / sumExpInitialARR_renewed : null;
+  const ttmRenewalRate = sumExpInitialARR_all > 0 ? sumRenewalInitialARR / sumExpInitialARR_all : null;
+  const ttmSeatsRate = sumExpInitialSeats_all > 0 ? sumRenewalInitialSeats / sumExpInitialSeats_all : null;
+
+  // === Upsell Rates (ARR-based) ===
+  const sumBy = (arr, field) => arr.reduce((s,sp)=>s+sp[field],0);
+
+  // O to M Rate
+  const otmDen = sumBy(data.filter(sp => sp.productFrom === 'O365 E3' || sp.productFrom === 'O365 E5' || sp.productFrom === 'O365 E1'), 'expirationEndingARR');
+  const otmNum = sumBy(data.filter(sp => sp.upsellMotion === 'O to M'), 'expirationEndingARR');
+  const otmRate = otmDen > 0 ? otmNum / otmDen : null;
+
+  // ME3 to ME5 Rate
+  const me35Den = sumBy(data.filter(sp => sp.productFrom === 'M365 E3'), 'expirationEndingARR');
+  const me35Num = sumBy(data.filter(sp => sp.upsellMotion === 'ME3 to ME5'), 'expirationEndingARR');
+  const me35Rate = me35Den > 0 ? me35Num / me35Den : null;
+
+  // BB to BS/BP Rate
+  const bbDen = sumBy(data.filter(sp => sp.productFrom === 'M365 Business Basic'), 'expirationEndingARR');
+  const bbNum = sumBy(data.filter(sp => sp.upsellMotion === 'Basic to Prem. or Std.'), 'expirationEndingARR');
+  const bbRate = bbDen > 0 ? bbNum / bbDen : null;
+
+  // BS to BP Rate
+  const bsDen = sumBy(data.filter(sp => sp.productFrom === 'M365 Business Standard' || sp.productFrom === 'M365 Business Standard (no Teams)'), 'expirationEndingARR');
+  const bsNum = sumBy(data.filter(sp => sp.upsellMotion === 'Std. to Prem.'), 'expirationEndingARR');
+  const bsRate = bsDen > 0 ? bsNum / bsDen : null;
+
+  // === Upsell Rates (Seats-based) ===
+  const otmSeatsDen = sumBy(data.filter(sp => sp.productFrom === 'O365 E3' || sp.productFrom === 'O365 E5' || sp.productFrom === 'O365 E1'), 'expirationEndingSeats');
+  const otmSeatsNum = sumBy(data.filter(sp => sp.upsellMotion === 'O to M'), 'expirationEndingSeats');
+  const otmSeatsRate = otmSeatsDen > 0 ? otmSeatsNum / otmSeatsDen : null;
+
+  const me35SeatsDen = sumBy(data.filter(sp => sp.productFrom === 'M365 E3'), 'expirationEndingSeats');
+  const me35SeatsNum = sumBy(data.filter(sp => sp.upsellMotion === 'ME3 to ME5'), 'expirationEndingSeats');
+  const me35SeatsRate = me35SeatsDen > 0 ? me35SeatsNum / me35SeatsDen : null;
+
+  const bbSeatsDen = sumBy(data.filter(sp => sp.productFrom === 'M365 Business Basic'), 'expirationEndingSeats');
+  const bbSeatsNum = sumBy(data.filter(sp => sp.upsellMotion === 'Basic to Prem. or Std.'), 'expirationEndingSeats');
+  const bbSeatsRate = bbSeatsDen > 0 ? bbSeatsNum / bbSeatsDen : null;
+
+  const bsSeatsDen = sumBy(data.filter(sp => sp.productFrom === 'M365 Business Standard' || sp.productFrom === 'M365 Business Standard (no Teams)'), 'expirationEndingSeats');
+  const bsSeatsNum = sumBy(data.filter(sp => sp.upsellMotion === 'Std. to Prem.'), 'expirationEndingSeats');
+  const bsSeatsRate = bsSeatsDen > 0 ? bsSeatsNum / bsSeatsDen : null;
+
+  // === CSP Billed Revenue Rates ===
+  const sumExpBilled_all    = sumBy(data, 'expirationBilledRevenue');
+  const sumRenBilled_all    = sumBy(data, 'renewalBilledRevenue');
+  const sumExpBilled_ren    = sumBy(renewed, 'expirationBilledRevenue');
+  const sumRenBilled_ren    = sumBy(renewed, 'renewalBilledRevenue');
+  const cspRenewalRate      = sumExpBilled_all > 0 ? sumRenBilled_all / sumExpBilled_all : null;
+  const cspRecaptureRate    = sumExpBilled_ren > 0 ? sumRenBilled_ren / sumExpBilled_ren : null;
+  const seatsRecaptureRate  = sumExpEndingSeats_renewed > 0 ? sumRenewalInitialSeats / sumExpEndingSeats_renewed : null;
+
+  // Expansion / Upsell Renewal Rate (Billed, renewed only)
+  const expansionRen  = renewed.filter(sp => sp.upsellMotion === 'Expansion');
+  const upsellRen     = renewed.filter(sp => sp.upsellMotion !== 'Expansion');
+  const expansionRate = sumBy(expansionRen,'expirationBilledRevenue') > 0
+    ? sumBy(expansionRen,'renewalBilledRevenue') / sumBy(expansionRen,'expirationBilledRevenue') : null;
+  const upsellRenewalRate = sumBy(upsellRen,'expirationBilledRevenue') > 0
+    ? sumBy(upsellRen,'renewalBilledRevenue') / sumBy(upsellRen,'expirationBilledRevenue') : null;
+
+  // === TTM ARR Growth ($) and (Seats) ===
+  const sumRenInitARR_all  = sumBy(data, 'renewalInitialARR');
+  const sumExpInitARR_all2 = sumBy(data, 'expirationInitialARR');
+  const ttmArrGrowthDollar = sumRenInitARR_all - sumExpInitARR_all2;
+  const ttmArrGrowthSeats  = sumBy(data,'renewalInitialSeats') - sumBy(data,'expirationInitialSeats');
+
+  // === Upsell Dollar Values ===
+  const otmUpsellDollar  = sumBy(data.filter(sp=>sp.upsellMotion==='O to M'),  'renewalInitialARR');
+  const me35UpsellDollar = sumBy(data.filter(sp=>sp.upsellMotion==='ME3 to ME5'), 'renewalInitialARR');
+
+  // === Copilot KPIs ===
+  const copilotRenewed = renewed.filter(sp => sp.productTo === 'M365 Copilot');
+  const renewalCopilotSeats = sumBy(copilotRenewed, 'renewalInitialSeats');
+  const accountsWithCopilot = new Set(copilotRenewed.filter(sp => sp.renewalInitialSeats > 0).map(sp => sp.customer)).size;
+  const COPILOT_ELIGIBLE = new Set(['M365 Business Premium','M365 Business Standard','M365 Business Standard (no Teams)','M365 E3','M365 E5','O365 E3','O365 E5']);
+  const eligibleExpiringSeats = sumBy(data.filter(sp => COPILOT_ELIGIBLE.has(sp.productFrom)), 'expirationEndingSeats');
+  const copilotAttachRate = eligibleExpiringSeats > 0 ? renewalCopilotSeats / eligibleExpiringSeats : null;
+
+  return {
+    annualizedRecaptureRate, annualizedRenewalRate, seatsRenewalRate,
+    cspRenewalRate, cspRecaptureRate, seatsRecaptureRate, expansionRate, upsellRenewalRate,
+    ttmRecaptureRate, ttmRenewalRate, ttmArrGrowthDollar, ttmArrGrowthSeats, ttmSeatsRate,
+    otmRate, otmUpsellDollar, me35Rate, me35UpsellDollar, bbRate, bsRate,
+    otmSeatsRate, me35SeatsRate, bbSeatsRate, bsSeatsRate,
+    renewalCopilotSeats, accountsWithCopilot, copilotAttachRate, eligibleExpiringSeats
+  };
+}
+
+function fmtPct(v) {
+  if (v === null || v === undefined || isNaN(v)) return '--';
+  return (v * 100).toFixed(0) + '%';
+}
+
+function fmtMoney(v) {
+  if (!v && v !== 0) return '--';
+  if (Math.abs(v) >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
+  if (Math.abs(v) >= 1e3) return '$' + (v/1e3).toFixed(0) + 'K';
+  return '$' + v.toFixed(0);
+}
+
+function fmtMoneyFull(v) {
+  if (!v && v !== 0) return '--';
+  return '$' + Math.round(v).toLocaleString();
+}
+
+// ========================= QUANTITY/PRICE ATTRIBUTION =========================
+function computeQtyPriceAttribution(data) {
+  const q0 = data.reduce((s,sp) => s + sp.expirationInitialSeats, 0);
+  const q1 = data.reduce((s,sp) => s + sp.renewalInitialSeats, 0);
+  const arrExp = data.reduce((s,sp) => s + sp.expirationInitialARR, 0);
+  const arrRen = data.reduce((s,sp) => s + sp.renewalInitialARR, 0);
+  const p0 = q0 > 0 ? arrExp / q0 : 0;
+  const p1 = q1 > 0 ? arrRen / q1 : 0;
+  const _p = (p1 - p0) * q0;
+  const _q = (q1 - q0) * p0;
+  const pxq = (p1 - p0) * (q1 - q0);
+  const denom = _p + _q;
+  const qty = _q + (denom !== 0 ? pxq * (_q / denom) : 0);
+  const price = _p + (denom !== 0 ? pxq * (_p / denom) : 0);
+  const total = arrRen - arrExp;
+  return { qty, price, total };
+}
+
+// ========================= CHART =========================
+function buildChartData(subPeriods) {
+  // Chart shows ONLY the months present in filtered subPeriods.
+  // When Expiration Date+1 filter is applied, only selected months appear.
+  const byMonth = {};
+  subPeriods.forEach(sp => {
+    if (!sp.expMonthKey) return;
+    if (!byMonth[sp.expMonthKey]) byMonth[sp.expMonthKey] = [];
+    byMonth[sp.expMonthKey].push(sp);
+  });
+
+  const sortedKeys = Object.keys(byMonth).sort();
+
+  // If no data, return empty structure to avoid chart errors
+  if (sortedKeys.length === 0) {
+    return { labels: [], entryExp: [], exitExp: [], entryRen: [],
+             annRenRate: [], ttmRenRate: [], monthKeys: [] };
+  }
+
+  const labels = sortedKeys.map(k => getMonthLabel(k).replace(', ', '\n'));
+
+  const entryExp = sortedKeys.map(k => byMonth[k].reduce((s,sp)=>s+sp.expirationInitialARR,0));
+  const exitExp  = sortedKeys.map(k => byMonth[k].reduce((s,sp)=>s+sp.expirationEndingARR,0));
+  const entryRen = sortedKeys.map(k =>
+    byMonth[k].filter(sp=>sp.isRenewed==='Yes').reduce((s,sp)=>s+sp.renewalInitialARR,0));
+
+  const annRenRate = sortedKeys.map(k => {
+    const d = byMonth[k];
+    const num = d.filter(sp=>sp.isRenewed==='Yes').reduce((s,sp)=>s+sp.renewalInitialARR,0);
+    const den = d.reduce((s,sp)=>s+sp.expirationEndingARR,0);
+    return den > 0 ? num/den : null;
+  });
+
+  // TTM = rolling cumulative window (up to 12 months back) using exitExp as denominator
+  const ttmRenRate = sortedKeys.map((k, i) => {
+    const windowKeys = sortedKeys.slice(Math.max(0, i - 11), i + 1);
+    let num = 0, den = 0;
+    windowKeys.forEach(wk => {
+      const d = byMonth[wk];
+      num += d.filter(sp=>sp.isRenewed==='Yes').reduce((s,sp)=>s+sp.renewalInitialARR,0);
+      den += d.reduce((s,sp)=>s+sp.expirationEndingARR,0);
+    });
+    return den > 0 ? num/den : null;
+  });
+
+  return { labels, entryExp, exitExp, entryRen, annRenRate, ttmRenRate, monthKeys: sortedKeys };
+}
+
+Chart.register(ChartDataLabels);
+
+function renderChart(chartData) {
+  try {
+    const toM = v => v / 1e6;
+    const newLabels  = chartData.labels || [];
+    const newD0 = (chartData.entryExp  || []).map(toM);
+    const newD1 = (chartData.exitExp   || []).map(toM);
+    const newD2 = (chartData.entryRen  || []).map(toM);
+    const newD3 = (chartData.annRenRate|| []).map(v => v !== null ? v * 100 : null);
+    const newD4 = (chartData.ttmRenRate|| []).map(v => v !== null ? v * 100 : null);
+
+    // ── Always destroy & recreate to avoid stale yAxisID bindings ──
+    if (revenueChart) {
+      revenueChart.destroy();
+      revenueChart = null;
+    }
+    const canvas = document.getElementById('revenueChart');
+    const orphan = Chart.getChart(canvas);
+    if (orphan) orphan.destroy();
+
+    const ctx = canvas.getContext('2d');
+    revenueChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: newLabels,
+        datasets: [
+          {
+            label: 'At-Entry Expiration',
+            data: newD0,
+            backgroundColor: 'rgba(189,189,189,0.8)',
+            borderColor: '#bdbdbd', borderWidth: 1, order: 3,
+          },
+          {
+            label: 'At-Exit Expiration',
+            data: newD1,
+            backgroundColor: 'rgba(97,97,97,0.8)',
+            borderColor: '#616161', borderWidth: 1, order: 3,
+          },
+          {
+            label: 'At-Entry Renewal',
+            data: newD2,
+            backgroundColor: 'rgba(25,118,210,0.85)',
+            borderColor: '#1976d2', borderWidth: 1, order: 3,
+          },
+          {
+            label: 'Annualized Renewal Rate',
+            data: newD3,
+            type: 'line', borderColor: '#42a5f5', backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#42a5f5',
+            tension: 0.3, yAxisID: 'y2', order: 1,
+          },
+          {
+            label: 'TTM Annualized Renewal Rate',
+            data: newD4,
+            type: 'line', borderColor: '#1a237e', backgroundColor: 'transparent',
+            borderWidth: 2, borderDash: [5, 5],
+            pointRadius: 4, pointBackgroundColor: '#1a237e',
+            tension: 0.3, yAxisID: 'y2', order: 1,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        layout: { padding: { top: 20 } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                if (ctx.datasetIndex >= 3) return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`;
+                return `${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}M`;
+              }
+            }
+          },
+          datalabels: {
+            display: (ctx) => ctx.datasetIndex >= 3 && ctx.parsed != null && ctx.parsed.y != null,
+            formatter: (val) => (val != null) ? Math.round(val) + '%' : '',
+            color: (ctx) => ctx.datasetIndex === 3 ? '#1976d2' : '#1a237e',
+            font: { size: 9, weight: 'bold' },
+            anchor: 'end', align: 'top', offset: 2, clip: false,
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            beginAtZero: true, position: 'left',
+            ticks: { callback: v => `$${v.toFixed(1)}M`, font: { size: 11 } },
+            grid: { color: 'rgba(0,0,0,0.06)' }
+          },
+          y2: {
+            beginAtZero: true, position: 'right', min: 0, max: 120,
+            ticks: { callback: v => `${v.toFixed(0)}%`, font: { size: 11 }, stepSize: 10 },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  } catch(err) {
+    console.error('renderChart error:', err);
+  }
+}
+
+// ========================= TABLE RENDERING =========================
+function buildUpsellMotionRows(data) {
+  const renewed = data.filter(sp => sp.isRenewed === 'Yes');
+
+  const groups = {
+    'Expansion': ['Expansion'],
+    'Upsell': ['Other Upsell', 'Std. to Prem.', 'Basic to Prem. or Std.', 'O to M', 'ME3 to ME5']
+  };
+
+  const rows = [];
+
+  Object.entries(groups).forEach(([groupName, motions]) => {
+    const groupData = renewed.filter(sp =>
+      groupName === 'Expansion' ? sp.upsellSummary === 'Expansion' : sp.upsellSummary === 'Upsell'
+    );
+    if (groupData.length === 0) return;
+
+    const gMetrics = computeGroupMetrics(groupData);
+    // Both groups are expandable (matching Power BI ⊕/⊖ behaviour)
+    rows.push({ level: 0, name: groupName, ...gMetrics, expandable: true, key: groupName });
+
+    // Sub-rows for BOTH groups
+    motions.forEach(motion => {
+      const mData = groupData.filter(sp => sp.upsellMotion === motion);
+      if (mData.length === 0) return;
+      const mMetrics = computeGroupMetrics(mData);
+      rows.push({ level: 1, name: motion, ...mMetrics, parentKey: groupName });
+    });
+  });
+
+  // Total
+  const totalData = renewed;
+  const totalMetrics = computeGroupMetrics(totalData);
+  rows.push({ level: -1, name: '總計', ...totalMetrics });
+
+  return rows;
+}
+
+function computeGroupMetrics(data) {
+  const entryExp = data.reduce((s,sp) => s+sp.expirationInitialARR, 0);
+  const exitExp = data.reduce((s,sp) => s+sp.expirationEndingARR, 0);
+  const renewal = data.reduce((s,sp) => s+sp.renewalInitialARR, 0);
+  const annRate = exitExp > 0 ? renewal / exitExp : null;
+  const ttmRate = entryExp > 0 ? renewal / entryExp : null;
+  const ttmGrowth = renewal - entryExp;
+  const { qty, price } = computeQtyPriceAttribution(data);
+  const qtyPct = ttmGrowth !== 0 ? qty / ttmGrowth : null;
+  const pricePct = ttmGrowth !== 0 ? price / ttmGrowth : null;
+  return { entryExp, exitExp, renewal, annRate, ttmRate, ttmGrowth, qty, price, qtyPct, pricePct };
+}
+
+function renderUpsellTable(data) {
+  const tbody = document.getElementById('upsell-table-body');
+  tbody.innerHTML = '';
+  const renewedCheck = data.filter(sp => sp.isRenewed === 'Yes');
+  if (renewedCheck.length === 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="11" class="text-center text-gray-400 py-6 text-sm">目前篩選條件下無已續約資料</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+  const rows = buildUpsellMotionRows(data);
+
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    if (row.level === -1) tr.className = 'table-row-total';
+    else if (row.level === 0) tr.className = 'table-row-main';
+    else { tr.className = 'table-row-sub'; tr.dataset.parent = row.parentKey; tr.style.display = expandedGroups[row.parentKey] ? '' : 'none'; }
+
+    const indent = row.level === 1 ? '&nbsp;&nbsp;&nbsp;&nbsp;' : '';
+    const toggleBtn = row.expandable
+      ? `<span class="toggle-icon ${expandedGroups[row.key]?'open':''}" id="toggle-${row.key}">&#9658;</span> `
+      : (row.level === 1 ? '' : '');
+
+    if (row.level === 0 && row.expandable) {
+      tr.style.cursor = 'pointer';
+      tr.onclick = () => toggleGroup(row.key);
+    }
+
+    tr.innerHTML = `
+      <td class="sticky left-0 ${row.level===0?'bg-blue-50':row.level===-1?'bg-gray-200':'bg-white'}">
+        ${indent}${toggleBtn}${row.name}
+      </td>
+      <td>${fmtMoneyFull(row.entryExp)}</td>
+      <td>${fmtMoneyFull(row.exitExp)}</td>
+      <td>${fmtMoneyFull(row.renewal)}</td>
+      <td><span class="badge ${(row.annRate||0)>=1?'badge-blue':'badge-green'}">${fmtPct(row.annRate)}</span></td>
+      <td><span class="badge badge-blue">${fmtPct(row.ttmRate)}</span></td>
+      <td>${fmtMoneyFull(row.ttmGrowth)}</td>
+      <td>${fmtMoneyFull(row.qty)}</td>
+      <td>${fmtPct(row.qtyPct)}</td>
+      <td>${fmtMoneyFull(row.price)}</td>
+      <td>${fmtPct(row.pricePct)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderGroupByTable(data, groupBy, tbodyId) {
+  try {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) { console.error('renderGroupByTable: tbody not found:', tbodyId); return; }
+    tbody.innerHTML = '';
+
+    if (data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-gray-400 py-6 text-sm">目前篩選條件下無資料</td></tr>`;
+      return;
+    }
+
+    const tableId = tbodyId.replace('-table-body', '');
+    const sort    = tableSortState[tableId] || { col: 'entryExp', asc: false };
+
+    // Build groups (ALL sub-periods, not just renewed)
+    const groups = {};
+    data.forEach(sp => {
+      const key = (sp[groupBy] && String(sp[groupBy]).trim()) ? String(sp[groupBy]).trim() : 'N/A';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(sp);
+    });
+
+    let rows = Object.entries(groups).map(([name, items]) => {
+      const renewedItems = items.filter(sp => sp.isRenewed === 'Yes');
+      const entryExp  = items.reduce((s,sp) => s+sp.expirationInitialARR, 0);
+      const exitExp   = items.reduce((s,sp) => s+sp.expirationEndingARR, 0);
+      const renewal   = renewedItems.reduce((s,sp) => s+sp.renewalInitialARR, 0);
+      const annRate   = exitExp  > 0 ? renewal / exitExp  : null;
+      const ttmRate   = entryExp > 0 ? renewal / entryExp : null;
+      const ttmGrowth = renewal - entryExp;
+      const seatsEnd  = items.reduce((s,sp) => s+sp.expirationEndingSeats, 0);
+      const seatsRen  = renewedItems.reduce((s,sp) => s+sp.renewalInitialSeats, 0);
+      const seatsRate = seatsEnd > 0 ? seatsRen / seatsEnd : null;
+      return { name, entryExp, exitExp, renewal, annRate, ttmRate, ttmGrowth,
+               count: renewedItems.length, seatsRate, _items: items };
+    });
+
+    // Sort
+    rows.sort((a, b) => {
+      let va = a[sort.col], vb = b[sort.col];
+      if (va === null || va === undefined) va = sort.asc ? Infinity : -Infinity;
+      if (vb === null || vb === undefined) vb = sort.asc ? Infinity : -Infinity;
+      if (typeof va === 'string') return sort.asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sort.asc ? va - vb : vb - va;
+    });
+
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.className = 'table-row-sub';
+      if (crossFilter.dim === groupBy && crossFilter.value === row.name) tr.classList.add('cf-sel');
+      tr.style.cursor = 'pointer';
+      tr.title = '點擊：交叉篩選 KPI 與圖表';
+      tr.onclick = () => toggleCrossFilter(groupBy, row.name);
+
+      // Drill store entry
+      const dmIdx = _dmIdx++;
+      _dm[dmIdx] = { title: row.name, items: row._items };
+
+      tr.innerHTML = `
+        <td class="sticky left-0 bg-white">
+          <span class="dico" title="查看訂閱明細" onclick="event.stopPropagation();showDM(${dmIdx})">&#128269;</span>${row.name}
+        </td>
+        <td>${fmtMoneyFull(row.entryExp)}</td>
+        <td>${fmtMoneyFull(row.exitExp)}</td>
+        <td>${fmtMoneyFull(row.renewal)}</td>
+        <td><span class="badge badge-blue">${fmtPct(row.annRate)}</span></td>
+        <td><span class="badge badge-blue">${fmtPct(row.ttmRate)}</span></td>
+        <td>${fmtMoneyFull(row.ttmGrowth)}</td>
+        <td>${row.count}</td>
+        <td>${fmtPct(row.seatsRate)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Total row
+    const allRenewed  = data.filter(sp => sp.isRenewed === 'Yes');
+    const tEntryExp   = data.reduce((s,sp) => s+sp.expirationInitialARR, 0);
+    const tExitExp    = data.reduce((s,sp) => s+sp.expirationEndingARR, 0);
+    const tRenewal    = allRenewed.reduce((s,sp) => s+sp.renewalInitialARR, 0);
+    const tAnnRate    = tExitExp  > 0 ? tRenewal / tExitExp  : null;
+    const tTtmRate    = tEntryExp > 0 ? tRenewal / tEntryExp : null;
+    const tTtmGrowth  = tRenewal - tEntryExp;
+    const tSeatsEnd   = data.reduce((s,sp) => s+sp.expirationEndingSeats, 0);
+    const tSeatsRen   = allRenewed.reduce((s,sp) => s+sp.renewalInitialSeats, 0);
+    const tSeatsRate  = tSeatsEnd > 0 ? tSeatsRen / tSeatsEnd : null;
+
+    const trTotal = document.createElement('tr');
+    trTotal.className = 'table-row-total';
+    trTotal.innerHTML = `
+      <td class="sticky left-0 bg-gray-200">總計</td>
+      <td>${fmtMoneyFull(tEntryExp)}</td>
+      <td>${fmtMoneyFull(tExitExp)}</td>
+      <td>${fmtMoneyFull(tRenewal)}</td>
+      <td><span class="badge badge-blue">${fmtPct(tAnnRate)}</span></td>
+      <td><span class="badge badge-blue">${fmtPct(tTtmRate)}</span></td>
+      <td>${fmtMoneyFull(tTtmGrowth)}</td>
+      <td>${allRenewed.length}</td>
+      <td>${fmtPct(tSeatsRate)}</td>
+    `;
+    tbody.appendChild(trTotal);
+    updateSortHeaders(tableId, sort);
+
+  } catch(err) {
+    console.error('renderGroupByTable error [' + tbodyId + ']:', err);
+    const tbody2 = document.getElementById(tbodyId);
+    if (tbody2) tbody2.innerHTML = `<tr><td colspan="9" class="text-center text-red-400 py-4 text-sm">渲染錯誤：${err.message}</td></tr>`;
+  }
+}
+
+function toggleGroup(key) {
+  expandedGroups[key] = !expandedGroups[key];
+  const icon = document.getElementById(`toggle-${key}`);
+  if (icon) icon.classList.toggle('open', expandedGroups[key]);
+  document.querySelectorAll(`tr[data-parent="${key}"]`).forEach(tr => {
+    tr.style.display = expandedGroups[key] ? '' : 'none';
+  });
+}
+
+// ========================= UPDATE DASHBOARD =========================
+function updateDashboard() {
+  // Chart + KPIs: apply cross-filter on top of main filter
+  let cfData = filteredSubPeriods;
+  if (crossFilter.dim && crossFilter.value) {
+    cfData = filteredSubPeriods.filter(sp => {
+      const v = (sp[crossFilter.dim] && String(sp[crossFilter.dim]).trim()) ? String(sp[crossFilter.dim]).trim() : 'N/A';
+      return v === crossFilter.value;
+    });
+  }
+  const data = cfData;
+
+  // KPIs
+  const kpis = computeKPIs(data);
+  document.getElementById('kpi-recapture').textContent     = fmtPct(kpis.annualizedRecaptureRate);
+  document.getElementById('kpi-renewal-rate').textContent  = fmtPct(kpis.annualizedRenewalRate);
+  document.getElementById('kpi-seats-renewal').textContent = fmtPct(kpis.seatsRenewalRate);
+  document.getElementById('kpi-csp-recapture').textContent  = fmtPct(kpis.cspRecaptureRate);
+  document.getElementById('kpi-csp-renewal').textContent    = fmtPct(kpis.cspRenewalRate);
+  document.getElementById('kpi-seats-recapture').textContent = fmtPct(kpis.seatsRecaptureRate);
+  document.getElementById('kpi-expansion-rate').textContent = fmtPct(kpis.expansionRate);
+  document.getElementById('kpi-upsell-rate').textContent    = fmtPct(kpis.upsellRenewalRate);
+  document.getElementById('kpi-ttm-recapture').textContent   = fmtPct(kpis.ttmRecaptureRate);
+  document.getElementById('kpi-ttm-renewal').textContent     = fmtPct(kpis.ttmRenewalRate);
+  document.getElementById('kpi-ttm-arr-growth').textContent  = fmtMoney(kpis.ttmArrGrowthDollar);
+  document.getElementById('kpi-ttm-seats-growth').textContent = Math.round(kpis.ttmArrGrowthSeats).toLocaleString();
+  document.getElementById('kpi-ttm-seats').textContent       = fmtPct(kpis.ttmSeatsRate);
+  document.getElementById('kpi-otm-rate').textContent   = fmtPct(kpis.otmRate);
+  document.getElementById('kpi-otm-dollar').textContent  = fmtMoney(kpis.otmUpsellDollar);
+  document.getElementById('kpi-me35-rate').textContent  = fmtPct(kpis.me35Rate);
+  document.getElementById('kpi-me35-dollar').textContent = fmtMoney(kpis.me35UpsellDollar);
+  document.getElementById('kpi-bb-rate').textContent    = fmtPct(kpis.bbRate);
+  document.getElementById('kpi-bs-rate').textContent    = fmtPct(kpis.bsRate);
+  document.getElementById('kpi-otm-seats').textContent  = fmtPct(kpis.otmSeatsRate);
+  document.getElementById('kpi-me35-seats').textContent = fmtPct(kpis.me35SeatsRate);
+  document.getElementById('kpi-bb-seats').textContent   = fmtPct(kpis.bbSeatsRate);
+  document.getElementById('kpi-bs-seats').textContent   = fmtPct(kpis.bsSeatsRate);
+  document.getElementById('kpi-copilot-seats').textContent    = kpis.renewalCopilotSeats.toLocaleString();
+  document.getElementById('kpi-copilot-accounts').textContent = kpis.accountsWithCopilot.toLocaleString();
+  document.getElementById('kpi-copilot-rate').textContent     = fmtPct(kpis.copilotAttachRate);
+  document.getElementById('kpi-copilot-eligible').textContent = Math.round(kpis.eligibleExpiringSeats).toLocaleString();
+
+  // Sparklines (use full filteredSubPeriods for month-trend context)
+  const sv = computeSparkValues(filteredSubPeriods);
+  setSpark('spark-ann-rate', sv.annRate, '#3b82f6');
+  setSpark('spark-ttm-rate', sv.ttmRate, '#1a237e');
+
+  // Chart
+  renderChart(buildChartData(data));
+
+  // Tables use full filteredSubPeriods (cross-filter only highlights, not removes rows)
+  _dm = {}; _dmIdx = 0;
+  renderUpsellTable(filteredSubPeriods);
+  renderGroupByTable(filteredSubPeriods, 'partnerName', 'partner-table-body');
+  renderGroupByTable(filteredSubPeriods, 'productFrom', 'product-table-body');
+  renderGroupByTable(filteredSubPeriods, 'salesTeam',   'area-table-body');
+  updateAnalysis(kpis, filteredSubPeriods);
+}
+
+// ========================= ANALYSIS PANELS =========================
+function updateAnalysis(kpis, data) {
+  const N = data.length;
+  if (!N) {
+    ['ap1','ap2','ap3','ap4','ap5','ap6'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('ap-hide');
+    });
+    return;
+  }
+
+  // ── helpers ──
+  const p  = (v, d=1) => v != null && !isNaN(v) ? (v*100).toFixed(d)+'%' : '--';
+  const m  = v => { if (v == null || isNaN(v)) return '--'; const a=Math.abs(v); return (v<0?'-':'+')+( a>=1e6?'$'+(a/1e6).toFixed(1)+'M': a>=1e3?'$'+(a/1e3).toFixed(0)+'K':'$'+a.toFixed(0)); };
+  const mn = v => { if (v == null || isNaN(v)) return '--'; const a=Math.abs(v); return (v<0?'- ':'')+(a>=1e6?'$'+(a/1e6).toFixed(1)+'M':a>=1e3?'$'+(a/1e3).toFixed(0)+'K':'$'+a.toFixed(0)); };
+  const vb = v => `<span class="ap-v">${v}</span>`;
+  const pill = (t, cls) => `<span class="ap-pill ${cls}">${t}</span>`;
+  const ratePill = (v, g=85, w=70) => {
+    if (v == null) return '';
+    const pct = v*100;
+    if (pct >= g) return pill('▲ 良好', 'ap-g');
+    if (pct >= w) return pill('▶ 注意', 'ap-w');
+    return pill('▼ 警示', 'ap-r');
+  };
+  const pt = txt => `<span class="ap-pt">${txt}</span>`;
+  const sep = `<hr class="ap-line">`;
+
+  // ── base data ──
+  const renewed   = data.filter(sp => sp.isRenewed === 'Yes');
+  const nRen = renewed.length;
+  const entrySum  = data.reduce((s,sp)=>s+sp.expirationInitialARR,0);
+  const exitSum   = data.reduce((s,sp)=>s+sp.expirationEndingARR,0);
+  const renSum    = renewed.reduce((s,sp)=>s+sp.renewalInitialARR,0);
+  const erosionPct = entrySum>0 ? (entrySum-exitSum)/entrySum : 0;
+
+  // ════════════════════════════════════════════
+  // AP1: At-Renewal
+  // ════════════════════════════════════════════
+  {
+    const ann = kpis.annualizedRenewalRate;
+    const rec = kpis.annualizedRecaptureRate;
+    const seatR = kpis.seatsRenewalRate;
+    const exp   = kpis.expansionRate;
+    const up    = kpis.upsellRenewalRate;
+
+    let h = `<div class="ap-title">📊 At-Renewal 數據分析</div>`;
+    h += `<div class="ap-row">`;
+    h += `到期筆數 ${vb(N.toLocaleString())} 筆，已續約 ${vb(nRen.toLocaleString())} 筆 &nbsp;`;
+    h += `Renewal Rate ${vb(p(ann))} ${ratePill(ann,85,70)} &nbsp;`;
+    h += `Recapture Rate ${vb(p(rec))} &nbsp;`;
+    h += `Seats Renewal ${vb(p(seatR))}`;
+    h += `</div>${sep}`;
+
+    const pts = [];
+    // Renewal rate assessment
+    if (ann != null) {
+      const pct = ann*100;
+      if (pct >= 90) pts.push(`✅ 續約率 ${vb(p(ann))} 表現優秀（超過 90%），整體客戶留存非常健康。`);
+      else if (pct >= 85) pts.push(`✅ 續約率 ${vb(p(ann))} 達標（85% 健康門檻以上），整體留存狀況良好。`);
+      else if (pct >= 70) pts.push(`⚠️ 續約率 ${vb(p(ann))} 低於 85% 健康門檻，需追蹤 ${vb(N-nRen)} 筆未續約訂閱的流失原因，並評估是否有競爭替代或預算縮減。`);
+      else pts.push(`🚨 續約率 ${vb(p(ann))} 低於 70%，為警示水位。共 ${vb(N-nRen)} 筆訂閱未續約，建議立即啟動客戶挽回計畫（Rescue Plan）並逐帳盤點流失風險。`);
+    }
+    // Recapture vs Renewal gap → mid-term churn signal
+    if (rec != null && ann != null) {
+      const gap = (rec - ann)*100;
+      if (gap > 5) pts.push(`📌 Recapture Rate（${vb(p(rec))}）比 Renewal Rate（${vb(p(ann))}）高 ${vb(gap.toFixed(1)+'%')}，代表已決定續約的客戶 ARR 回收效率良好；損失主要來自完全未續約的 ${vb(N-nRen)} 筆訂閱，非來自方案縮減。`);
+    }
+    // ARR erosion mid-term
+    if (erosionPct > 0.03) pts.push(`📌 期間 ARR 侵蝕率 ${vb((erosionPct*100).toFixed(1)+'%')}（Entry ${vb(mn(entrySum))} → Exit ${vb(mn(exitSum))}），訂閱期間有中途降量，建議加強 Mid-Term 健康度監控。`);
+    else if (erosionPct <= 0) pts.push(`✅ 訂閱期間無 ARR 侵蝕（At-Exit ≥ At-Entry），中途加購或升級抵消了流失。`);
+    // Seats vs ARR mix
+    if (seatR != null && ann != null) {
+      const diff = (seatR - ann)*100;
+      if (diff > 5)  pts.push(`⚠️ Seats 續約率（${vb(p(seatR))}）高出 ARR 續約率（${vb(p(ann))}）${vb(diff.toFixed(1)+'%')}，席位保留但 ARR 相對偏低，顯示有方案降級（Downgrade）壓力，建議聚焦 Upsell 提升每席位 ARR。`);
+      else if (diff < -5) pts.push(`✅ ARR 續約率（${vb(p(ann))}）高出 Seats 續約率（${vb(p(seatR))}）${vb(Math.abs(diff).toFixed(1)+'%')}，方案升級（Upsell）效果良好，每席位 ARR 提升。`);
+    }
+    // Expansion/Upsell highlight
+    if (exp != null && exp > 0.05) pts.push(`✅ Expansion Renewal Rate ${vb(p(exp))}，有 ${vb(p(exp))} 的續約客戶在續約時同步擴增 ARR。`);
+    if (up  != null && up  < 0.05) pts.push(`💡 Upsell Rate 僅 ${vb(p(up))}，方案升級機會尚未充分發揮，建議加強 Upsell 話術與場景。`);
+
+    h += pts.map(pt).join('');
+    setAP('ap1', h);
+  }
+
+  // ════════════════════════════════════════════
+  // AP2: TTM
+  // ════════════════════════════════════════════
+  {
+    const ttmR  = kpis.ttmRenewalRate;
+    const ttmRc = kpis.ttmRecaptureRate;
+    const arrG  = kpis.ttmArrGrowthDollar;
+    const seatG = kpis.ttmArrGrowthSeats;
+    const seatR = kpis.ttmSeatsRate;
+    const ann   = kpis.annualizedRenewalRate;
+
+    let h = `<div class="ap-title">📊 TTM 趨勢分析</div>`;
+    h += `<div class="ap-row">`;
+    h += `TTM Renewal Rate ${vb(p(ttmR))} ${ratePill(ttmR,85,70)} &nbsp;`;
+    h += `TTM Recapture ${vb(p(ttmRc))} &nbsp;`;
+    h += `ARR Growth ${vb(m(arrG))} ${arrG!=null?(arrG>=0?pill('成長','ap-g'):pill('萎縮','ap-r')):''} &nbsp;`;
+    h += `Seats Growth ${vb(seatG!=null?Math.round(seatG).toLocaleString()+' 席':'--')}`;
+    h += `</div>${sep}`;
+
+    const pts = [];
+    // TTM vs Annualized
+    if (ttmR != null && ann != null) {
+      const diff = (ann - ttmR)*100;
+      if (diff > 5)  pts.push(`📌 Annualized Rate（${vb(p(ann))}）比 TTM Rate（${vb(p(ttmR))}）高 ${vb(diff.toFixed(1)+'%')}，差距來自訂閱期間的中途 ARR 流失（Mid-Term 降量），建議強化訂閱期間的健康度追蹤。`);
+      else if (diff < -3) pts.push(`✅ TTM Rate（${vb(p(ttmR))}）接近或高於 Annualized Rate（${vb(p(ann))}），中途異動對 ARR 影響有限，訂閱期間客戶行為穩定。`);
+      else pts.push(`📊 TTM Rate（${vb(p(ttmR))}）與 Annualized Rate（${vb(p(ann))}）相近，續約趨勢穩定一致。`);
+    }
+    // ARR growth direction
+    if (arrG != null) {
+      if (arrG > 0) pts.push(`✅ TTM ARR Growth ${vb(m(arrG))}，整體訂閱規模正在成長，業務擴張趨勢正向。`);
+      else if (arrG < 0) pts.push(`🚨 TTM ARR Growth ${vb(m(arrG))}，整體 ARR 萎縮。建議使用下方表格交叉篩選，找出 ARR 流失最大的 Partner 或 Product，優先啟動挽留行動。`);
+    }
+    // Seats vs ARR mix
+    if (seatG != null && arrG != null) {
+      if (seatG > 0 && arrG < 0) pts.push(`⚠️ 席位淨增加 ${vb(Math.round(seatG).toLocaleString())} 席但 ARR 萎縮，代表新增或續約的席位以低階方案為主（Downgrade 現象），需重點改善 Upsell 及方案升級推動。`);
+      else if (seatG > 0 && arrG > 0) pts.push(`✅ 席位增加 ${vb(Math.round(seatG).toLocaleString())} 席，ARR 同步成長，Volume 和 Price 雙重驅動，業務健康擴張。`);
+      else if (seatG < 0 && arrG > 0) pts.push(`✅ 席位減少 ${vb(Math.abs(Math.round(seatG)).toLocaleString())} 席但 ARR 成長，每席位 ARR 提升，代表高價值方案升級（Price 貢獻為正），Upsell 效果良好。`);
+      else if (seatG < 0 && arrG < 0) pts.push(`🚨 席位與 ARR 雙降，流失同時發生在客戶數量與方案層級，需優先診斷高 ARR 流失帳號。`);
+    }
+    if (seatR != null) pts.push(`📌 TTM Seats Renewal Rate ${vb(p(seatR))}，席位層面的留存率${seatR>=0.85?' 健康達標':' 低於 85%，需關注'}。`);
+
+    h += pts.map(pt).join('');
+    setAP('ap2', h);
+  }
+
+  // ════════════════════════════════════════════
+  // AP3: Upsell Rates (ARR)
+  // ════════════════════════════════════════════
+  {
+    const otm  = kpis.otmRate;    const otmD = kpis.otmUpsellDollar;
+    const me35 = kpis.me35Rate;   const me35D= kpis.me35UpsellDollar;
+    const bb   = kpis.bbRate;
+    const bs   = kpis.bsRate;
+
+    let h = `<div class="ap-title">📊 Upsell 升級分析（ARR）</div>`;
+    h += `<div class="ap-row">`;
+    h += `O to M ${vb(p(otm))} ${otm!=null?(otm>=0.15?pill('活躍','ap-g'):otm>=0.05?pill('偏低','ap-w'):pill('停滯','ap-r')):''} &nbsp;`;
+    h += `ME3→ME5 ${vb(p(me35))} ${me35!=null?(me35>=0.1?pill('活躍','ap-g'):me35>=0.03?pill('偏低','ap-w'):pill('停滯','ap-r')):''} &nbsp;`;
+    h += `BB→BS/BP ${vb(p(bb))} &nbsp; BS→BP ${vb(p(bs))}`;
+    h += `</div>${sep}`;
+
+    const pts = [];
+    const upsellTotal = (otmD||0) + (me35D||0);
+    if (upsellTotal > 0) pts.push(`✅ 本期 Upsell 帶來額外 ARR 共 ${vb(mn(upsellTotal))}（O to M ${vb(mn(otmD))} + ME3→ME5 ${vb(mn(me35D))}），是 ARR 淨成長的重要來源。`);
+
+    if (otm != null) {
+      const op = otm*100;
+      if (op >= 15) pts.push(`✅ O to M 升級率 ${vb(p(otm))} 表現優秀，O365 客戶轉移到 M365 的速度良好，建議維持現有推廣節奏。`);
+      else if (op >= 5) pts.push(`⚠️ O to M 升級率 ${vb(p(otm))} 尚有提升空間。O365 客戶基數通常最大，建議透過 Teams 資安與 Copilot 資格等附加價值加速轉換。`);
+      else pts.push(`🚨 O to M 升級率 ${vb(p(otm))} 偏低（低於 5%），O365 → M365 轉換幾乎停滯，建議重新審視推廣材料與 Partner 激勵機制。`);
+    }
+    if (me35 != null) {
+      const mp = me35*100;
+      if (mp >= 10) pts.push(`✅ ME3→ME5 升級率 ${vb(p(me35))} 良好，企業資安升級需求旺盛，E5 的高單價對 ARR 貢獻顯著。`);
+      else if (mp >= 3) pts.push(`⚠️ ME3→ME5 升級率 ${vb(p(me35))} 尚有空間。E5 包含進階資安與 Copilot 資格，建議提供威脅評估報告或 Copilot 體驗加速說服。`);
+      else if (mp > 0) pts.push(`💡 ME3→ME5 升級率 ${vb(p(me35))} 偏低，但此路徑單價提升幅度最大，若能識別出有資安需求的 E3 客戶將有高槓桿效果。`);
+    }
+    if ((bb != null && bb > 0.05) || (bs != null && bs > 0.05)) {
+      const bbp = bb ? (bb*100).toFixed(1)+'%' : '--';
+      const bsp = bs ? (bs*100).toFixed(1)+'%' : '--';
+      pts.push(`📌 商務方案升級：BB→BS/BP ${vb(bbp)}，BS→BP ${vb(bsp)}，中小企業升級動能${(bb||0)+(bs||0)>0.1?' 活躍':' 偏低，建議加強商務方案 BP 的資安功能訴求（Intune、Defender）'}。`);
+    }
+    if (pts.length === 0) pts.push('📊 暫無足夠 Upsell 資料，請確認篩選範圍涵蓋足夠的到期訂閱。');
+
+    h += pts.map(pt).join('');
+    setAP('ap3', h);
+  }
+
+  // ════════════════════════════════════════════
+  // AP4: Copilot
+  // ════════════════════════════════════════════
+  {
+    const attach  = kpis.copilotAttachRate;
+    const elig    = kpis.eligibleExpiringSeats;
+    const copSeats= kpis.renewalCopilotSeats;
+    const accounts= kpis.accountsWithCopilot;
+
+    let h = `<div class="ap-title">🤖 Copilot AI 採購分析</div>`;
+    h += `<div class="ap-row">`;
+    h += `Attach Rate ${vb(p(attach,1))} ${attach!=null?(attach>=0.1?pill('活躍','ap-g'):attach>=0.03?pill('偏低','ap-w'):pill('初期','ap-r')):''} &nbsp;`;
+    h += `可購資格席位 ${vb(elig!=null?elig.toLocaleString():'--')} 席 &nbsp;`;
+    h += `已購席位 ${vb(copSeats!=null?copSeats.toLocaleString():'--')} 席 &nbsp;`;
+    h += `採購帳號 ${vb(accounts!=null?accounts.toLocaleString():'--')} 個`;
+    h += `</div>${sep}`;
+
+    const pts = [];
+    if (attach != null && elig != null && elig > 0) {
+      const ap = attach*100;
+      const gap = Math.round(elig*(1-attach));
+      if (ap >= 15) pts.push(`✅ Copilot Attach Rate ${vb(p(attach,1))} 已達良好水位，AI 採購動能強勁，建議持續擴大 POC 覆蓋率並追蹤使用率以防流失。`);
+      else if (ap >= 5) pts.push(`⚠️ Copilot Attach Rate ${vb(p(attach,1))}，仍有 ${vb(gap.toLocaleString())} 席資格席位尚未轉換。建議針對未購客戶推動 Copilot POC（概念驗證），展示實際生產力提升場景。`);
+      else if (ap >= 1) pts.push(`💡 Copilot Attach Rate ${vb(p(attach,1))} 偏低，市場滲透仍在早期。可資格席位 ${vb(elig.toLocaleString())} 席代表龐大潛在商機，建議優先從高決策力帳號切入，搭配 POC 活動。`);
+      else pts.push(`🚨 Copilot Attach Rate 幾乎為 0，可能尚未啟動推廣。共有 ${vb(elig.toLocaleString())} 席資格席位等待開發，建議制定明確的 Copilot 推廣路線圖。`);
+    }
+    if (accounts != null && copSeats != null && accounts > 0) {
+      const avgSeats = Math.round(copSeats / accounts);
+      if (accounts < 3) pts.push(`⚠️ 目前僅 ${vb(accounts)} 個帳號採購 Copilot（平均每帳號 ${vb(avgSeats)} 席），客戶集中度高，需積極擴大採購帳號數。`);
+      else pts.push(`📌 ${vb(accounts)} 個帳號採購 Copilot，平均每帳號 ${vb(avgSeats)} 席；建議提升採購客戶的 Copilot 使用率，強化續約黏著度（已購 Copilot 客戶通常有更高的整體續約率）。`);
+    }
+    if (pts.length === 0) pts.push('📊 暫無 Copilot 採購記錄，請確認資料來源是否包含 M365 Copilot 授權訂閱。');
+
+    h += pts.map(pt).join('');
+    setAP('ap4', h);
+  }
+
+  // ════════════════════════════════════════════
+  // AP5: Chart (Revenue Performance)
+  // ════════════════════════════════════════════
+  {
+    // Compute monthly stats from data
+    const byM = {};
+    data.forEach(sp => { if (sp.expMonthKey) { (byM[sp.expMonthKey]=byM[sp.expMonthKey]||[]).push(sp); }});
+    const mKeys = Object.keys(byM).sort();
+    const nMonths = mKeys.length;
+    let h = `<div class="ap-title">📈 Revenue Performance 圖表分析</div>`;
+
+    if (nMonths === 0) { h += pt('暫無資料'); setAP('ap5', h); return; }
+
+    const lastKey  = mKeys[nMonths-1];
+    const lastD    = byM[lastKey];
+    const lastEntry= lastD.reduce((s,sp)=>s+sp.expirationInitialARR,0);
+    const lastExit = lastD.reduce((s,sp)=>s+sp.expirationEndingARR,0);
+    const lastRen  = lastD.filter(sp=>sp.isRenewed==='Yes').reduce((s,sp)=>s+sp.renewalInitialARR,0);
+    const lastAnn  = lastExit>0 ? lastRen/lastExit : null;
+    const lastErosion = lastEntry>0 ? (lastEntry-lastExit)/lastEntry : 0;
+
+    // Trend: compare last 3 months annualized rate
+    const annSeries = mKeys.slice(-3).map(k => {
+      const d=byM[k]; const ex=d.reduce((s,sp)=>s+sp.expirationEndingARR,0);
+      const rn=d.filter(sp=>sp.isRenewed==='Yes').reduce((s,sp)=>s+sp.renewalInitialARR,0);
+      return ex>0?rn/ex:null;
+    }).filter(v=>v!=null);
+    const trendUp = annSeries.length>=2 && annSeries[annSeries.length-1] > annSeries[0]+0.03;
+    const trendDn = annSeries.length>=2 && annSeries[annSeries.length-1] < annSeries[0]-0.03;
+
+    h += `<div class="ap-row">`;
+    h += `最新月份 ${vb(lastKey)} &nbsp;`;
+    h += `At-Exit Expiration ${vb(mn(lastExit))} &nbsp;`;
+    h += `At-Entry Renewal ${vb(mn(lastRen))} &nbsp;`;
+    h += `Annualized Rate ${vb(p(lastAnn))} ${ratePill(lastAnn,85,70)} &nbsp;`;
+    h += `涵蓋月份 ${vb(nMonths)} 個`;
+    h += `</div>${sep}`;
+
+    const pts = [];
+    pts.push(`📊 圖表涵蓋 ${vb(nMonths)} 個月份（${vb(mKeys[0])} 至 ${vb(lastKey)}），最新月 Annualized Renewal Rate ${vb(p(lastAnn))}。`);
+    if (trendUp) pts.push(`✅ 近 3 個月 Annualized Rate 呈上升趨勢（${vb(p(annSeries[0]))} → ${vb(p(annSeries[annSeries.length-1]))}），續約動能持續改善。`);
+    else if (trendDn) pts.push(`⚠️ 近 3 個月 Annualized Rate 呈下滑趨勢（${vb(p(annSeries[0]))} → ${vb(p(annSeries[annSeries.length-1]))}），建議立即檢查是否有高 ARR 帳號未續約。`);
+    else if (annSeries.length >= 2) pts.push(`📌 近 3 個月 Annualized Rate 相對平穩（${vb(p(annSeries[0]))} → ${vb(p(annSeries[annSeries.length-1]))}）。`);
+    if (lastErosion > 0.03) pts.push(`⚠️ 最新月份 At-Entry（${vb(mn(lastEntry))}）與 At-Exit（${vb(mn(lastExit))}）差距 ${vb((lastErosion*100).toFixed(1)+'%')}，訂閱期間有中途 ARR 侵蝕，建議追蹤降量原因。`);
+    if (lastRen > lastExit) pts.push(`✅ 最新月 At-Entry Renewal（${vb(mn(lastRen))}）高於 At-Exit（${vb(mn(lastExit))}），藍色長條超過深灰長條，Upsell 帶動續約 ARR 淨增長。`);
+    else if (lastRen > 0) pts.push(`📌 最新月 At-Entry Renewal（${vb(mn(lastRen))}）低於 At-Exit（${vb(mn(lastExit))}），有 Downsell 現象，需關注方案降級問題。`);
+
+    h += pts.map(pt).join('');
+    setAP('ap5', h);
+  }
+
+  // ════════════════════════════════════════════
+  // AP6: Tables — dimension analysis
+  // ════════════════════════════════════════════
+  {
+    const grp = (field) => {
+      const g = {};
+      data.forEach(sp => {
+        const k = (sp[field]&&String(sp[field]).trim())||'N/A';
+        (g[k]=g[k]||[]).push(sp);
+      });
+      return Object.entries(g).map(([name,items]) => {
+        const ren = items.filter(sp=>sp.isRenewed==='Yes');
+        const exit= items.reduce((s,sp)=>s+sp.expirationEndingARR,0);
+        const renA= ren.reduce((s,sp)=>s+sp.renewalInitialARR,0);
+        return { name, n:items.length, exit, renA, rate: exit>0?renA/exit:null };
+      }).filter(r=>r.exit>0).sort((a,b)=>b.exit-a.exit);
+    };
+
+    const partners = grp('partnerName');
+    const products = grp('productFrom');
+    const areas    = grp('salesTeam');
+
+    const top = (rows, n=2) => rows.slice(0,n);
+    const bot = (rows, n=2) => [...rows].filter(r=>r.rate!=null).sort((a,b)=>a.rate-b.rate).slice(0,n);
+
+    let h = `<div class="ap-title">📋 維度對比分析（Partner / Product / Area）</div>${sep}`;
+
+    // Partner
+    if (partners.length > 0) {
+      h += `<div style="margin-bottom:5px"><span style="font-weight:700;color:#374151">📦 Partner</span></div>`;
+      const topP = top(partners); const botP = bot(partners);
+      h += `<div class="ap-row" style="margin-bottom:4px">`;
+      topP.forEach(r => h += `${r.name} ${vb(p(r.rate))} ${ratePill(r.rate,85,70)} ${pill(mn(r.exit)+' exitARR','ap-b')} &nbsp;`);
+      h += `</div>`;
+      const pts = [];
+      if (topP[0]) pts.push(`📌 最大規模 Partner「${vb(topP[0].name)}」到期 ARR ${vb(mn(topP[0].exit))}，續約率 ${vb(p(topP[0].rate))}${topP[0].rate!=null&&topP[0].rate<0.7?' — 警示水位，需立即跟進':topP[0].rate!=null&&topP[0].rate<0.85?' — 低於門檻，建議加強客戶追蹤':'，表現達標'}。`);
+      const worst = botP.find(r=>r.rate!=null&&r.rate<0.7);
+      if (worst && worst.exit > 1e5) pts.push(`🚨 「${vb(worst.name)}」續約率僅 ${vb(p(worst.rate))}（到期 ${vb(mn(worst.exit))}），是高風險 Partner，建議優先診斷流失原因。`);
+      h += pts.map(pt).join('');
+    }
+
+    // Product
+    if (products.length > 0) {
+      h += `<hr class="ap-line"><div style="margin-bottom:5px"><span style="font-weight:700;color:#374151">📦 Product</span></div>`;
+      const topProd = top(products,3); const botProd = bot(products,2);
+      h += `<div class="ap-row" style="margin-bottom:4px">`;
+      topProd.forEach(r => h += `${r.name} ${vb(p(r.rate))} ${ratePill(r.rate,85,70)} &nbsp;`);
+      h += `</div>`;
+      const pts = [];
+      if (topProd[0]) pts.push(`📌 規模最大產品「${vb(topProd[0].name)}」到期 ARR ${vb(mn(topProd[0].exit))}，續約率 ${vb(p(topProd[0].rate))}。`);
+      const worstProd = botProd.find(r=>r.rate!=null&&r.rate<0.7);
+      if (worstProd && worstProd.exit > 5e4) pts.push(`⚠️ 「${vb(worstProd.name)}」續約率 ${vb(p(worstProd.rate))} 偏低，可能有替代方案競爭或客戶需求轉變，建議重新審視該產品的續約策略。`);
+      h += pts.map(pt).join('');
+    }
+
+    // Area
+    if (areas.length > 0) {
+      h += `<hr class="ap-line"><div style="margin-bottom:5px"><span style="font-weight:700;color:#374151">📦 Area / Team</span></div>`;
+      const topA = top(areas,3); const botA = bot(areas,2);
+      h += `<div class="ap-row" style="margin-bottom:4px">`;
+      topA.forEach(r => h += `${r.name} ${vb(p(r.rate))} ${ratePill(r.rate,85,70)} &nbsp;`);
+      h += `</div>`;
+      const bestA = [...areas].filter(r=>r.rate!=null).sort((a,b)=>b.rate-a.rate)[0];
+      const worstA= botA.find(r=>r.rate!=null);
+      const pts = [];
+      if (bestA)  pts.push(`✅ 最佳區域「${vb(bestA.name)}」續約率 ${vb(p(bestA.rate))}，可作為最佳實踐（Best Practice）推廣至其他區域。`);
+      if (worstA && worstA.rate < 0.75 && worstA.exit > 5e4) pts.push(`⚠️ 「${vb(worstA.name)}」續約率 ${vb(p(worstA.rate))} 落後，建議盤點該區域高 ARR 到期帳號，評估是否需要額外 CSM 資源支援。`);
+      h += pts.map(pt).join('');
+    }
+
+    setAP('ap6', h);
+  }
+}
+
+function setAP(id, html) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = html;
+  el.classList.remove('ap-hide');
+}
+
+// ========================= SORTING =========================
+function sortGbTable(tableId, col) {
+  const s = tableSortState[tableId];
+  if (s.col === col) { s.asc = !s.asc; }
+  else { tableSortState[tableId] = { col, asc: col === 'name' }; }
+  const gMap = { partner: 'partnerName', product: 'productFrom', area: 'salesTeam' };
+  renderGroupByTable(filteredSubPeriods, gMap[tableId], tableId + '-table-body');
+}
+function updateSortHeaders(tableId, sort) {
+  const cols = ['name','entryExp','exitExp','renewal','annRate','ttmRate','ttmGrowth','count','seatsRate'];
+  cols.forEach(c => {
+    const el = document.getElementById(`si-${tableId}-${c}`);
+    if (!el) return;
+    if (sort.col === c) { el.textContent = sort.asc ? '▲' : '▼'; el.className = 'sort-icon active'; }
+    else { el.textContent = '▲▼'; el.className = 'sort-icon'; }
+  });
+}
+
+// ========================= CROSS-FILTER =========================
+function toggleCrossFilter(dim, value) {
+  if (crossFilter.dim === dim && crossFilter.value === value) {
+    crossFilter = { dim: null, value: null };
+  } else {
+    crossFilter = { dim, value };
+  }
+  const bar  = document.getElementById('cf-bar');
+  const text = document.getElementById('cf-text');
+  if (crossFilter.dim) {
+    const lbl = { partnerName: 'Partner', productFrom: 'Product', salesTeam: 'Area' };
+    text.innerHTML = `交叉篩選：<strong>${lbl[crossFilter.dim] || crossFilter.dim}</strong> = <strong>${crossFilter.value}</strong> &nbsp;<span style="font-size:.7rem;color:#93c5fd">（KPI 與圖表已依此過濾；點擊同一列取消）</span>`;
+    bar.classList.add('show');
+  } else {
+    bar.classList.remove('show');
+  }
+  updateDashboard();
+}
+function clearCrossFilter() {
+  crossFilter = { dim: null, value: null };
+  document.getElementById('cf-bar').classList.remove('show');
+  updateDashboard();
+}
+
+// ========================= DRILL-THROUGH =========================
+function showDM(idx) {
+  const d = _dm[idx];
+  if (!d) return;
+  _dmCurrent = d.items;
+  document.getElementById('drill-title').textContent = d.title;
+  document.getElementById('drill-subtitle').textContent = `${d.items.length} 筆訂閱期間`;
+  const tbody = document.getElementById('drill-tbody');
+  tbody.innerHTML = '';
+  [...d.items].sort((a,b) => (b.expirationEndingARR||0) - (a.expirationEndingARR||0)).forEach(sp => {
+    const tr = document.createElement('tr');
+    tr.className = 'table-row-sub';
+    const ren = sp.isRenewed === 'Yes';
+    tr.innerHTML = `
+      <td class="font-mono text-xs" style="text-align:left">${sp.subId||'-'}</td>
+      <td style="text-align:left;white-space:normal;max-width:160px">${sp.customer||'-'}</td>
+      <td style="text-align:left">${sp.partnerName||'-'}</td>
+      <td style="text-align:left">${sp.productFrom||'-'}</td>
+      <td>${sp.productTo||'-'}</td>
+      <td>${sp.expMonthKey||'-'}</td>
+      <td>${sp.fyLabel||'-'}</td>
+      <td><span class="badge ${ren?'badge-blue':'badge-green'}">${sp.isRenewed}</span></td>
+      <td>${sp.onTime||'-'}</td>
+      <td style="white-space:normal">${sp.upsellMotion||'-'}</td>
+      <td>${fmtMoneyFull(sp.expirationEndingARR)}</td>
+      <td>${fmtMoneyFull(sp.renewalInitialARR)}</td>
+      <td>${sp.expirationEndingSeats}</td>
+      <td>${sp.renewalInitialSeats}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('drill-modal').classList.add('show');
+}
+function closeDrill() {
+  document.getElementById('drill-modal').classList.remove('show');
+}
+
+// ========================= SPARKLINES =========================
+function computeSparkValues(subPeriods) {
+  const byMonth = {};
+  subPeriods.forEach(sp => {
+    if (!sp.expMonthKey) return;
+    if (!byMonth[sp.expMonthKey]) byMonth[sp.expMonthKey] = [];
+    byMonth[sp.expMonthKey].push(sp);
+  });
+  const keys = Object.keys(byMonth).sort();
+  const calc = (k, numField, denField) => {
+    const d = byMonth[k];
+    const num = d.filter(sp=>sp.isRenewed==='Yes').reduce((s,sp)=>s+sp[numField],0);
+    const den = d.reduce((s,sp)=>s+sp[denField],0);
+    return den > 0 ? num/den*100 : null;
+  };
+  return {
+    annRate: keys.map(k => calc(k, 'renewalInitialARR', 'expirationEndingARR')),
+    ttmRate: keys.map(k => calc(k, 'renewalInitialARR', 'expirationInitialARR')),
+  };
+}
+function setSpark(elId, values, color) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const valid = values.filter(v => v !== null);
+  if (valid.length < 2) { el.innerHTML = ''; return; }
+  const W=58, H=18;
+  const min = Math.min(...valid), max = Math.max(...valid), range = max-min||1;
+  const pts = values.map((v,i) => {
+    if (v === null) return null;
+    const x = (i/Math.max(values.length-1,1))*(W-4)+2;
+    const y = H-2-((v-min)/range)*(H-4);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).filter(Boolean).join(' ');
+  const up = valid[valid.length-1] >= valid[0];
+  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg><span style="font-size:.6rem;color:${up?'#16a34a':'#dc2626'};margin-left:2px">${up?'▲':'▼'}</span>`;
+}
+
+// ========================= EXPORT EXCEL =========================
+function exportExcel() {
+  if (!filteredSubPeriods || filteredSubPeriods.length === 0) { alert('目前無資料可匯出'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // KPI sheet
+  const kpis = computeKPIs(filteredSubPeriods);
+  const kpiData = [
+    ['分組','指標','數值'],
+    ['At-Renewal','Annualized Recapture Rate',fmtPct(kpis.annualizedRecaptureRate)],
+    ['At-Renewal','Annualized Renewal Rate',fmtPct(kpis.annualizedRenewalRate)],
+    ['At-Renewal','Seats Renewal Rate',fmtPct(kpis.seatsRenewalRate)],
+    ['At-Renewal (Billed)','CSP Recapture Rate',fmtPct(kpis.cspRecaptureRate)],
+    ['At-Renewal (Billed)','CSP Renewal Rate',fmtPct(kpis.cspRenewalRate)],
+    ['At-Renewal (Billed)','Seats Recapture Rate',fmtPct(kpis.seatsRecaptureRate)],
+    ['At-Renewal (Billed)','Expansion Renewal Rate',fmtPct(kpis.expansionRate)],
+    ['At-Renewal (Billed)','Upsell Renewal Rate',fmtPct(kpis.upsellRenewalRate)],
+    ['TTM','TTM Annualized Recapture Rate',fmtPct(kpis.ttmRecaptureRate)],
+    ['TTM','TTM Annualized Renewal Rate',fmtPct(kpis.ttmRenewalRate)],
+    ['TTM','TTM ARR Growth ($)',kpis.ttmArrGrowthDollar],
+    ['TTM','TTM ARR Growth (Seats)',Math.round(kpis.ttmArrGrowthSeats)],
+    ['TTM','TTM Seats Renewal Rate',fmtPct(kpis.ttmSeatsRate)],
+    ['Upsell ARR','O to M Rate',fmtPct(kpis.otmRate)],['Upsell ARR','O to M Upsell $',kpis.otmUpsellDollar],
+    ['Upsell ARR','ME3→ME5 Rate',fmtPct(kpis.me35Rate)],['Upsell ARR','ME3→ME5 Upsell $',kpis.me35UpsellDollar],
+    ['Upsell ARR','BB→BS/BP Rate',fmtPct(kpis.bbRate)],['Upsell ARR','BS→BP Rate',fmtPct(kpis.bsRate)],
+    ['Copilot','Renewal Copilot Seats',kpis.renewalCopilotSeats],
+    ['Copilot','Accounts w/ Copilot',kpis.accountsWithCopilot],
+    ['Copilot','Copilot Attach Rate',fmtPct(kpis.copilotAttachRate)],
+    ['Copilot','Copilot Eligible Seats',Math.round(kpis.eligibleExpiringSeats)],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(kpiData), 'KPI');
+
+  // Group table sheets
+  function makeGbSheet(groupBy) {
+    const groups = {};
+    filteredSubPeriods.forEach(sp => {
+      const k = (sp[groupBy]&&String(sp[groupBy]).trim())||'N/A';
+      if (!groups[k]) groups[k]=[];
+      groups[k].push(sp);
+    });
+    const hdr = ['Name','Entry Exp','Exit Exp','Renewal $','Annualized Rate','TTM Rate','TTM Growth $','Renewal Count','Seats Rate'];
+    const rows = [hdr];
+    Object.entries(groups).sort((a,b)=>b[1].reduce((s,sp)=>s+sp.expirationInitialARR,0)-a[1].reduce((s,sp)=>s+sp.expirationInitialARR,0))
+      .forEach(([name,items]) => {
+        const ren=items.filter(sp=>sp.isRenewed==='Yes');
+        const en=items.reduce((s,sp)=>s+sp.expirationInitialARR,0);
+        const ex=items.reduce((s,sp)=>s+sp.expirationEndingARR,0);
+        const re=ren.reduce((s,sp)=>s+sp.renewalInitialARR,0);
+        const se=items.reduce((s,sp)=>s+sp.expirationEndingSeats,0);
+        const sr=ren.reduce((s,sp)=>s+sp.renewalInitialSeats,0);
+        rows.push([name,en,ex,re,ex>0?re/ex:null,en>0?re/en:null,re-en,ren.length,se>0?sr/se:null]);
+      });
+    return XLSX.utils.aoa_to_sheet(rows);
+  }
+  XLSX.utils.book_append_sheet(wb, makeGbSheet('partnerName'), 'Partner');
+  XLSX.utils.book_append_sheet(wb, makeGbSheet('productFrom'),  'Product');
+  XLSX.utils.book_append_sheet(wb, makeGbSheet('salesTeam'),    'Area');
+
+  // Raw data
+  const rawHdr=['SubID','Customer','Partner(From)','Partner(To)','Product(From)','Product(To)','Exp.Month','FY','Renewed?','OnTime?','UpsellMotion','EntryARR','ExitARR','RenewalARR','EntrySeats','ExitSeats','RenewalSeats'];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([rawHdr,...filteredSubPeriods.map(sp=>[
+    sp.subId,sp.customer,sp.dealerFrom,sp.dealerTo,sp.productFrom,sp.productTo,
+    sp.expMonthKey,sp.fyLabel,sp.isRenewed,sp.onTime||'',sp.upsellMotion,
+    sp.expirationInitialARR,sp.expirationEndingARR,sp.renewalInitialARR,
+    sp.expirationInitialSeats,sp.expirationEndingSeats,sp.renewalInitialSeats
+  ])]), '訂閱明細');
+
+  XLSX.writeFile(wb, `CSP_Dashboard_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportDrillExcel() {
+  if (!_dmCurrent || _dmCurrent.length === 0) return;
+  const hdr=['SubID','Customer','Partner','Product(From)','Product(To)','Exp.Month','FY','Renewed?','OnTime?','UpsellMotion','ExitARR','RenewalARR','ExitSeats','RenewalSeats'];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([hdr,..._dmCurrent.map(sp=>[
+    sp.subId,sp.customer,sp.partnerName,sp.productFrom,sp.productTo,
+    sp.expMonthKey,sp.fyLabel,sp.isRenewed,sp.onTime||'',sp.upsellMotion,
+    sp.expirationEndingARR,sp.renewalInitialARR,sp.expirationEndingSeats,sp.renewalInitialSeats
+  ])]), '明細');
+  XLSX.writeFile(wb, `CSP_Detail_${document.getElementById('drill-title').textContent}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportChartPng() {
+  const canvas = document.getElementById('revenueChart');
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.download = `CSP_Chart_${new Date().toISOString().slice(0,10)}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+// ========================= TAB SWITCHING =========================
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('tc-' + name).classList.add('active');
+}
+
+// ========================= FILE HANDLING =========================
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('dragover');
+}
+function handleDragLeave(e) {
+  document.getElementById('upload-zone').classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+}
+
+function loadFile(file) {
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('error-msg').classList.add('hidden');
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (rows.length === 0) throw new Error('Excel 檔案無資料');
+
+      // Process
+      allSubPeriods = processRawData(rows);
+      filteredSubPeriods = allSubPeriods;
+
+      const renewedCount = allSubPeriods.filter(sp => sp.isRenewed === 'Yes').length;
+      document.getElementById('data-info').textContent = `已載入 ${rows.length.toLocaleString()} 筆訂單，${allSubPeriods.length.toLocaleString()} 個訂閱期，${renewedCount.toLocaleString()} 個已續約`;
+      document.getElementById('data-info').classList.remove('hidden');
+      document.getElementById('reload-btn').classList.remove('hidden');
+      document.getElementById('export-excel-btn').classList.remove('hidden');
+
+      // Populate filters
+      const opts = buildFilterOptions(allSubPeriods);
+      populateExpMonthSelect(opts);
+      populateSelect('f-geography', [...opts.geographies]);
+      populateSelect('f-segment', [...opts.segments]);
+      populateSelect('f-partner-to', [...opts.partnersTo]);
+      populateSelect('f-product-to', [...opts.productsTo]);
+      populateSelect('f-billing', [...opts.billings]);
+      populateSelect('f-am', [...opts.ams]);
+      populateSelect('f-partner-from', [...opts.partnersFrom]);
+      populateSelect('f-product-from', [...opts.productsFrom]);
+      populateSelect('f-fy', [...opts.fys].sort());
+      populateSelect('f-upsell-motion', [...opts.upsellMotions].sort());
+      populateSelect('f-internal-team', [...opts.internalTeams].sort());
+
+      // Show dashboard
+      document.getElementById('upload-section').classList.add('hidden');
+      document.getElementById('dashboard-section').classList.remove('hidden');
+      document.getElementById('loading').classList.add('hidden');
+
+      updateDashboard();
+    } catch (err) {
+      document.getElementById('loading').classList.add('hidden');
+      const msg = document.getElementById('error-msg');
+      msg.textContent = '載入失敗：' + err.message;
+      msg.classList.remove('hidden');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Auto-load ────────────────────────────────────────────────────────────────
+const LOCAL_DEFAULT = 'D:\\DeskT\\Austin 自動化\\新增資料夾\\CSP訂單資料_raw.xlsx';
+const CLOUD_DEFAULT = 'CSP訂單資料_raw.xlsx';
+
+// IndexedDB: persist FileSystemFileHandle across page loads
+function _idbOp(mode, fn) {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('csp_dashboard_v1', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+    req.onsuccess = e => {
+      const db = e.target.result;
+      try {
+        const tx = db.transaction('handles', mode);
+        fn(tx.objectStore('handles'), tx, db, res, rej);
+      } catch(err) { db.close(); rej(err); }
+    };
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbSaveHandle(h) {
+  return _idbOp('readwrite', (store, tx, db, res, rej) => {
+    store.put(h, 'excel');
+    tx.oncomplete = () => { db.close(); res(); };
+    tx.onerror    = () => { db.close(); rej(tx.error); };
+  });
+}
+async function idbLoadHandle() {
+  return _idbOp('readonly', (store, tx, db, res) => {
+    const r = store.get('excel');
+    r.onsuccess = () => { db.close(); res(r.result || null); };
+    r.onerror   = () => { db.close(); res(null); };
+  }).catch(() => null);
+}
+
+// Show File System Access button (Chrome/Edge local)
+function showFSAButton(handle) {
+  const hintEl = document.getElementById('auto-load-hint');
+  const btnStyle = 'display:inline-flex;align-items:center;gap:6px;padding:7px 18px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:500;margin-top:6px';
+  if (handle) {
+    hintEl.innerHTML =
+      `<button onclick="tryFSAClick()" style="${btnStyle}">📂 載入 ${handle.name || 'Excel 檔案'}</button>`
+      + `<div style="margin-top:5px;color:#9ca3af;font-size:0.7rem">已記住檔案，點擊一次授權即載入</div>`;
+  } else {
+    hintEl.innerHTML =
+      `<button onclick="pickAndSaveFile()" style="${btnStyle}">📂 選取 Excel 檔案（自動記住路徑）</button>`
+      + `<div style="margin-top:5px;color:#9ca3af;font-size:0.7rem">預設路徑：${LOCAL_DEFAULT}</div>`
+      + `<div style="margin-top:2px;color:#6366f1;font-size:0.68rem">選取後自動記住路徑，同一 session 再開啟可直接載入</div>`;
+  }
+  hintEl.classList.remove('hidden');
+}
+
+// Called when user clicks "load remembered file" button
+async function tryFSAClick() {
+  const handle = await idbLoadHandle();
+  if (handle) {
+    try {
+      const perm = await handle.requestPermission({ mode: 'read' });
+      if (perm === 'granted') { loadFile(await handle.getFile()); return; }
+    } catch(e) { /* file moved or permission denied — fall through to picker */ }
+  }
+  pickAndSaveFile();
+}
+
+// Open file picker, save handle, load file
+async function pickAndSaveFile() {
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'Excel 訂單資料', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx', '.xls'] } }],
+      multiple: false
+    });
+    await idbSaveHandle(handle);
+    loadFile(await handle.getFile());
+  } catch(err) {
+    if (err.name !== 'AbortError') console.error('pickAndSaveFile:', err);
+  }
+}
+
+async function tryAutoLoad() {
+  const proto   = window.location.protocol;
+  const isCloud = proto === 'http:' || proto === 'https:';
+  const isLocal = proto === 'file:';
+  if (!isCloud && !isLocal) return;
+
+  const statusEl = document.getElementById('auto-load-status');
+  const msgEl    = document.getElementById('auto-load-msg');
+  const hintEl   = document.getElementById('auto-load-hint');
+
+  statusEl.classList.remove('hidden');
+
+  try {
+    if (isCloud) {
+      // Cloud: fetch from root
+      msgEl.textContent = '自動載入雲端預設檔案...';
+      const resp = await fetch(CLOUD_DEFAULT);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const buf = await resp.arrayBuffer();
+      statusEl.classList.add('hidden');
+      loadFile(new File([buf], CLOUD_DEFAULT, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+
+    } else {
+      // Local file://
+      statusEl.classList.add('hidden');
+      const ua = navigator.userAgent;
+      const isChromium = ua.includes('Chrome/') || ua.includes('Edg/');
+
+      if (isChromium && 'showOpenFilePicker' in window) {
+        // Chrome/Edge ≥ 86: File System Access API
+        const handle = await idbLoadHandle();
+        if (handle) {
+          const perm = await handle.queryPermission({ mode: 'read' });
+          if (perm === 'granted') {
+            // Auto-load — no click needed (permission still active this session)
+            loadFile(await handle.getFile());
+            return;
+          }
+          // Permission lapsed (new browser session) — show one-click button
+          showFSAButton(handle);
+        } else {
+          // First visit — show pick button with default path hint
+          showFSAButton(null);
+        }
+      } else {
+        // Firefox: XHR to file:// works by default
+        statusEl.classList.remove('hidden');
+        msgEl.textContent = '自動載入本機預設檔案...';
+        const localUrl = 'file:///' + LOCAL_DEFAULT.replace(/\\/g, '/').split('/').map((s, i) => i === 0 ? s : encodeURIComponent(s)).join('/');
+        const buf = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', localUrl, true);
+          xhr.responseType = 'arraybuffer';
+          xhr.onload  = () => (xhr.status === 0 || xhr.status === 200) ? resolve(xhr.response) : reject(new Error('status ' + xhr.status));
+          xhr.onerror = () => reject(new Error('XHR 錯誤'));
+          xhr.send();
+        });
+        statusEl.classList.add('hidden');
+        loadFile(new File([buf], 'CSP訂單資料_raw.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      }
+    }
+  } catch (err) {
+    statusEl.classList.add('hidden');
+    hintEl.textContent = isCloud
+      ? '（未找到預設檔案 ' + CLOUD_DEFAULT + '，請手動上傳）'
+      : '（載入失敗：' + err.message + '，請手動上傳）';
+    hintEl.classList.remove('hidden');
+    console.info('Auto-load 失敗：', err.message);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', tryAutoLoad);
+
+// Close drill modal on ESC or backdrop click
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrill(); });
+document.addEventListener('click', e => {
+  if (e.target === document.getElementById('drill-modal')) closeDrill();
+});
+</script>
+</body>
+</html>
