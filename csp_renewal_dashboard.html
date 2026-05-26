@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
-  body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #f3f4f6; }
+  body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #e8ecf4; }
   .filter-label { font-size: 0.7rem; font-weight: 600; color: #374151; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 3px; }
   .filter-select { border: 1px solid #d1d5db; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; width: 100%; background: white; color: #1f2937; cursor: pointer; }
   .filter-select:focus { outline: none; border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0,120,212,0.2); }
@@ -67,6 +67,16 @@
   .ap-line{border:none;border-top:1px solid #f3f4f6;margin:7px 0}
   .ap-pt{display:block;padding:1px 0;padding-left:14px;text-indent:-14px}
   .ap-pt::before{content:'';display:none}
+  /* ── Section colour wrappers ── */
+  .sec-wrap{border-radius:12px;padding:14px 16px 6px;margin-bottom:16px;border:1px solid transparent;border-top:3px solid transparent}
+  .sec-renewal{background:#eef7ff;border-color:#bfdbfe;border-top-color:#3b82f6}
+  .sec-ttm    {background:#ededff;border-color:#c7d2fe;border-top-color:#6366f1}
+  .sec-upsell {background:#edfbf3;border-color:#a7f3d0;border-top-color:#10b981}
+  .sec-copilot{background:#faf4ff;border-color:#e9d5ff;border-top-color:#a855f7}
+  .sec-chart  {background:#f0f9ff;border-color:#bae6fd;border-top-color:#0ea5e9}
+  .sec-wrap .ap{margin-bottom:4px;margin-top:4px;border-radius:8px;background:#ffffffcc}
+  .sec-wrap details.info-block{margin-bottom:10px}
+  .sec-wrap .kpi-box{box-shadow:0 1px 4px rgba(0,0,0,.06)}
   /* ── Info / definition blocks ── */
   details.info-block{margin-bottom:8px}
   details.info-block>summary{cursor:pointer;font-size:.73rem;color:#6b7280;font-weight:500;padding:3px 10px;border-radius:4px;list-style:none;display:inline-flex;align-items:center;gap:5px;border:1px solid #e5e7eb;background:#fafafa;user-select:none}
@@ -148,7 +158,7 @@
 <div id="dashboard-section" class="hidden p-4">
 
   <!-- Filter Panel -->
-  <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
+  <div class="bg-white border border-indigo-100 rounded-lg p-4 mb-4 shadow-sm" style="border-top:3px solid #818cf8">
     <div class="grid grid-cols-7 gap-3 mb-3">
       <div class="relative" id="exp-month-wrapper">
         <div class="filter-label">Expiration Date + 1</div>
@@ -252,6 +262,7 @@
     </div>
   </div>
 
+  <div class="sec-wrap sec-renewal">
   <details class="info-block">
     <summary>📖 At-Renewal 指標 — 定義、縮寫說明與分析建議</summary>
     <div class="info-content">
@@ -322,7 +333,9 @@
     </div>
   </div>
   <div id="ap1" class="ap ap-hide"></div>
+  </div><!-- /sec-renewal -->
 
+  <div class="sec-wrap sec-ttm">
   <details class="info-block">
     <summary>📖 TTM 指標 — 定義、縮寫說明與分析建議</summary>
     <div class="info-content">
@@ -372,7 +385,9 @@
     </div>
   </div>
   <div id="ap2" class="ap ap-hide"></div>
+  </div><!-- /sec-ttm -->
 
+  <div class="sec-wrap sec-upsell">
   <details class="info-block">
     <summary>📖 Upsell Rates — 定義、縮寫說明與分析建議</summary>
     <div class="info-content">
@@ -430,7 +445,9 @@
     </div>
   </div>
   <div id="ap3" class="ap ap-hide"></div>
+  </div><!-- /sec-upsell -->
 
+  <div class="sec-wrap sec-copilot">
   <details class="info-block">
     <summary>📖 Copilot 指標 — 定義、縮寫說明與分析建議</summary>
     <div class="info-content">
@@ -497,7 +514,9 @@
     </div>
   </div>
   <div id="ap4" class="ap ap-hide"></div>
+  </div><!-- /sec-copilot -->
 
+  <div class="sec-wrap sec-chart">
   <!-- Block 5: Chart info -->
   <details class="info-block">
     <summary>📖 Revenue Performance 圖表 — 元素說明與分析建議</summary>
@@ -516,7 +535,7 @@
   </details>
 
   <!-- Chart -->
-  <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
+  <div class="bg-white rounded-lg p-4 mb-2 shadow-sm" style="border:1px solid #bae6fd">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-gray-800">Revenue Performance - At-Renewal + Mid-Term</h3>
       <div class="flex items-center gap-3">
@@ -536,9 +555,10 @@
     <canvas id="revenueChart"></canvas>
   </div>
   <div id="ap5" class="ap ap-hide"></div>
+  </div><!-- /sec-chart -->
 
   <!-- Recapture Driver Table -->
-  <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+  <div class="bg-white rounded-lg shadow-sm overflow-hidden" style="border:1px solid #c7d2fe;border-top:3px solid #6366f1">
     <div class="cf-bar" id="cf-bar">
       <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
       <span id="cf-text" class="flex-1"></span>
