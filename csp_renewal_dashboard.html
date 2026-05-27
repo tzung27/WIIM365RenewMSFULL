@@ -104,6 +104,20 @@
   .ia{font-weight:700;color:#1d4ed8;white-space:nowrap;font-family:monospace;font-size:.73rem;padding-top:1px}
   .info-note{background:#fffbeb;border-left:3px solid #f59e0b;padding:7px 12px;border-radius:0 4px 4px 0;margin-top:10px;font-size:.73rem;line-height:1.6}
   .info-tip{background:#f0fdf4;border-left:3px solid #16a34a;padding:7px 12px;border-radius:0 4px 4px 0;margin-top:6px;font-size:.73rem;line-height:1.6}
+  /* ── Scenario example box ── */
+  .info-scenario{background:#f0f7ff;border-left:3px solid #3b82f6;padding:10px 14px;border-radius:0 6px 6px 0;margin-top:10px;font-size:.73rem;line-height:1.7}
+  .info-scenario .sc-title{font-weight:700;color:#1d4ed8;margin-bottom:8px;font-size:.76rem}
+  .info-scenario .sc-flow{display:flex;flex-wrap:wrap;gap:4px 5px;align-items:center;margin:6px 0 4px}
+  .info-scenario .sc-step{display:inline-flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:5px 11px;min-width:88px;font-size:.68rem;text-align:center}
+  .info-scenario .sc-val{font-weight:700;font-size:.88rem;color:#1d4ed8}
+  .info-scenario .sc-val.red{color:#dc2626}
+  .info-scenario .sc-val.green{color:#16a34a}
+  .info-scenario .sc-lbl{color:#6b7280;font-size:.62rem;margin-top:1px;white-space:nowrap}
+  .info-scenario .sc-arrow{color:#9ca3af;font-size:1rem;font-weight:700;align-self:center;flex-shrink:0}
+  .info-scenario .sc-delta{display:inline-block;padding:1px 7px;border-radius:10px;font-size:.68rem;font-weight:700;margin-left:4px;vertical-align:middle}
+  .info-scenario .sc-delta.neg{background:#fee2e2;color:#b91c1c}
+  .info-scenario .sc-delta.pos{background:#d1fae5;color:#065f46}
+  .info-scenario .sc-note{background:#eff6ff;border-radius:4px;padding:6px 10px;margin-top:8px;color:#374151;font-size:.71rem;line-height:1.65}
 </style>
 </head>
 <body class="min-h-screen">
@@ -291,6 +305,35 @@
         <span class="ia">Expansion</span><span><strong>擴增</strong>：同一產品增加席位數量（同品加量），客戶規模擴大</span>
         <span class="ia">Upsell</span><span><strong>升級銷售</strong>：客戶從低階產品升級至高階產品（跨品升級），提高單價</span>
       </div>
+      <h4>💡 具體情境說明（客戶 A）</h4>
+      <div class="info-scenario">
+        <div class="sc-title">情境：客戶 A ／ 2024 年 1 月簽約，年約 → 2025 年 1 月到期續約</div>
+        <div class="sc-flow">
+          <div class="sc-step">
+            <span class="sc-val">$120K</span>
+            <span class="sc-lbl">At-Entry Expiration</span>
+            <span class="sc-lbl">（訂閱期開始 ARR）</span>
+          </div>
+          <span class="sc-arrow">→</span>
+          <div class="sc-step" style="border-color:#fca5a5">
+            <span class="sc-val red">$100K</span>
+            <span class="sc-lbl">At-Exit Expiration</span>
+            <span class="sc-lbl">（到期前實際 ARR）</span>
+          </div>
+          <span class="sc-arrow">→</span>
+          <div class="sc-step" style="border-color:#93c5fd">
+            <span class="sc-val green">$110K</span>
+            <span class="sc-lbl">At-Entry Renewal</span>
+            <span class="sc-lbl">（新一期起始 ARR）</span>
+          </div>
+        </div>
+        <div class="sc-note">
+          <strong>At-Entry vs At-Exit（期間健康度）：</strong>$120K → $100K，差距 <span class="sc-delta neg">−$20K</span>，代表訂閱期間因降級而侵蝕 ARR，這是「期間健康度」的核心訊號。業務留住了客戶，但損失了部分規模。<br>
+          <strong>Renewal vs Exit（本次成效）：</strong>$110K vs $100K → <span class="sc-delta pos">Upsell +$10K</span>，續約 ARR 高於到期 Exit ARR，此次執行力佳。<br>
+          <strong>Renewal vs Entry（整體趨勢）：</strong>$110K &lt; $120K → 整體仍有 <span class="sc-delta neg">−$10K</span> 淨降，代表這位客戶對 ARR 的整體貢獻度仍在下滑。<br>
+          <strong>Annualized Renewal Rate = At-Entry Renewal ÷ At-Exit Expiration = $110K ÷ $100K = <span style="color:#1d4ed8">110%</span></strong>，衡量「這期合約到期時，當下留存了多少？」——反映本期執行力。
+        </div>
+      </div>
       <div class="info-note">
         <strong>📊 分析重點：</strong>Recapture Rate 與 Renewal Rate 的差距直接反映「未續約比例」的影響程度。若差距 &gt; 15%，表示有大量客戶未續約，需優先確認流失原因（競爭對手介入、預算縮減或服務問題）。CSP Renewal Rate 以實際帳單收入計算，與 ARR 基礎的數值可能略有差異，適合作為財務核對依據。Expansion Rate 高代表現有客戶規模擴大（成長型客戶），Upsell Rate 高代表產品升級成功。
       </div>
@@ -359,6 +402,28 @@
         <span class="ia">Mid-Term</span><span><strong>訂閱中途異動</strong>：在訂閱到期日前發生的異動，例如中途加購席位、升級或降級，影響 Exit ARR 與 Entry ARR 之差</span>
         <span class="ia">TTM ARR Growth ($)</span><span><strong>TTM ARR 淨成長額</strong>：續約初始 ARR − 到期初始 ARR；正值代表業績成長，負值代表 ARR 整體萎縮</span>
         <span class="ia">TTM ARR Growth (Seats)</span><span><strong>席位數淨增減</strong>：續約席位數 − 到期初始席位數；反映使用者規模的變化</span>
+      </div>
+      <h4>💡 具體情境說明（客戶 A）— 分母差異最容易搞混</h4>
+      <div class="info-scenario">
+        <div class="sc-title">同一筆訂閱：Entry $120K → Exit $100K → Renewal $110K</div>
+        <div class="sc-flow" style="gap:8px 14px;flex-direction:column;align-items:flex-start">
+          <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+            <span style="min-width:220px;font-weight:600;color:#1d4ed8">Annualized Renewal Rate</span>
+            <span>= At-Entry Renewal ÷ <strong>At-Exit</strong> Expiration</span>
+            <span>= $110K ÷ <strong>$100K</strong> = <span style="font-weight:700;color:#1d4ed8">110%</span></span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+            <span style="min-width:220px;font-weight:600;color:#374151">TTM Annualized Renewal Rate</span>
+            <span>= At-Entry Renewal ÷ <strong>At-Entry</strong> Expiration（12M 滾動）</span>
+            <span>= $110K ÷ <strong>$120K</strong> ≈ <span style="font-weight:700;color:#374151">91.7%</span></span>
+          </div>
+        </div>
+        <div class="sc-note">
+          <strong>分母不同是關鍵：</strong><br>
+          • <strong>Annualized（藍色實線）</strong>用 <strong>At-Exit $100K</strong> 為分母，衡量「這期合約到期前，我們留住了多少？」——聚焦本月到期、反映當下執行力，適合內部操作預警。<br>
+          • <strong>TTM（深藍虛線）</strong>用 <strong>At-Entry $120K</strong> 為分母，把過去 12 個月攤平計算，消除單月異常值——更穩定、更適合向董事會或外部報告趨勢。<br>
+          • 本例 TTM (91.7%) &lt; Annualized (110%)，差距反映訂閱期間的 Mid-Term ARR 侵蝕（$120K→$100K）。若 TTM 持續低於 Annualized，代表客戶中途降量是系統性問題。
+        </div>
       </div>
       <div class="info-note">
         <strong>📊 分析重點：</strong>TTM Renewal Rate 以到期「初始」ARR 為分母，Annualized Renewal Rate 以到期「結束」ARR 為分母；若 TTM &lt; Annualized，代表訂閱期間有 Mid-Term ARR 流失（客戶中途降量）。TTM 指標跨越完整 12 個月，較能反映業務全貌，適合用於季報或年度績效評估。
@@ -542,6 +607,47 @@
         <span class="ia">At-Entry Renewal</span><span>（藍色長條）續約初始 ARR：該月已確認續約的訂閱，在新一期「開始時」的 ARR；高於 At-Exit 表示有Upsell，低於則有Downsell</span>
         <span class="ia">Annualized Renewal Rate</span><span>（藍色實線折線）以當月 At-Exit Expiration 為分母計算的月別續約率，反映當月實際到期的成功留存比例</span>
         <span class="ia">TTM Annualized Renewal Rate</span><span>（深藍虛線折線）以當月 At-Entry Expiration 為分母、往前滾動 12 個月計算的續約率；較平滑，排除單月波動，更能代表長期健康趨勢</span>
+      </div>
+      <h4>💡 具體情境對照（客戶 A → 對應圖表各元素）</h4>
+      <div class="info-scenario">
+        <div class="sc-title">如何在圖表上「讀懂」客戶 A 的故事：Entry $120K → Exit $100K → Renewal $110K</div>
+        <div class="sc-flow">
+          <div class="sc-step" style="border-color:#bdbdbd;background:#f5f5f5">
+            <span class="sc-val" style="color:#757575">$120K</span>
+            <span class="sc-lbl">淺灰長條</span>
+            <span class="sc-lbl">At-Entry Expiration</span>
+          </div>
+          <span class="sc-arrow">→</span>
+          <div class="sc-step" style="border-color:#9e9e9e;background:#f0f0f0">
+            <span class="sc-val red">$100K</span>
+            <span class="sc-lbl">深灰長條</span>
+            <span class="sc-lbl">At-Exit Expiration</span>
+          </div>
+          <span class="sc-arrow">→</span>
+          <div class="sc-step" style="border-color:#1976d2">
+            <span class="sc-val green">$110K</span>
+            <span class="sc-lbl">藍色長條</span>
+            <span class="sc-lbl">At-Entry Renewal</span>
+          </div>
+          <span class="sc-arrow" style="margin:0 2px">／</span>
+          <div class="sc-step" style="border-color:#42a5f5;min-width:98px">
+            <span class="sc-val" style="color:#1565c0">110%</span>
+            <span class="sc-lbl">藍色實線</span>
+            <span class="sc-lbl">Annualized Rate</span>
+          </div>
+          <span class="sc-arrow" style="margin:0 2px">／</span>
+          <div class="sc-step" style="border-color:#1a237e;min-width:98px">
+            <span class="sc-val" style="color:#283593">≈91.7%</span>
+            <span class="sc-lbl">深藍虛線</span>
+            <span class="sc-lbl">TTM Rate</span>
+          </div>
+        </div>
+        <div class="sc-note">
+          <strong>① 淺灰 vs 深灰（At-Entry vs At-Exit）= 期間健康度：</strong>差距 <span class="sc-delta neg">−$20K</span>，代表訂閱期間曾降級，即便最終續約，這段 ARR 侵蝕已無法回收。差距愈大，期間管理愈需加強。<br>
+          <strong>② 藍色長條 vs 深灰長條（Renewal vs Exit）：</strong>$110K &gt; $100K → <span class="sc-delta pos">Upsell +$10K</span>，本次續約執行力佳。若藍色持續低於深灰，代表有系統性 Downsell 壓力。<br>
+          <strong>③ 藍色實線（Annualized Rate）= $110K ÷ $100K = 110%：</strong>分母為 <strong>At-Exit</strong>，反映「當期到期的實際留存率」，波動較大，適合內部即時預警。<br>
+          <strong>④ 深藍虛線（TTM Rate）≈ $110K ÷ $120K = 91.7%：</strong>分母為 <strong>At-Entry</strong>，跨 12 個月滾動計算——曲線更平滑，適合季報趨勢與董事會報告。兩線持續分叉（實線高 &gt; 虛線），正是 Mid-Term 降量的視覺訊號。
+        </div>
       </div>
       <div class="info-note">📊 <strong>分析重點：</strong>重點觀察「At-Entry vs At-Exit 灰色長條差距」——差距愈大代表訂閱期間 ARR 侵蝕愈嚴重，即使最終續約也已流失部分金額。若藍色長條持續高於深灰長條（At-Exit），表示 Upsell 成效良好；反之則有 Downsell 壓力。兩條折線的交叉或持續分叉，也是續約動能轉變的預警訊號。</div>
       <div class="info-tip">✅ <strong>檢討建議：</strong>① 若 Annualized Rate 連續 3 個月下滑，立即觸發客戶健康度複查（Health Check），鎖定高風險到期帳號；② 若 At-Exit 明顯低於 At-Entry（灰色長條差距 &gt;5%），需調查是否有系統性降級行為，並評估是否調整承諾折扣政策；③ TTM Rate 作為季報/年報對外溝通的標準指標，短期 Annualized Rate 可用於內部操作預警。</div>
