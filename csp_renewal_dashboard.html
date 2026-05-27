@@ -1601,14 +1601,18 @@ const _cspDL = {
           ? (Math.round(val) + '%')
           : (val >= 1 ? '$' + val.toFixed(1) + 'M' : '$' + (val * 1000).toFixed(0) + 'K');
         const tw = ctx.measureText(text).width;
-        const px = 5, py = 2, pr = 3;
-        const bw = tw + px * 2, bh = fSize + py * 2 + 1;
+        const px = 6, py = 2;
+        const bw = tw + px * 2, bh = fSize + py * 2 + 2;
+        const pr = bh / 2;                             // true capsule radius
         const bx = pt.x - bw / 2;
         const by = Math.max(chartArea.top + 2, pt.y - bh - 6);
-        // Pill background
-        ctx.fillStyle = isLine
-          ? (di === 3 ? 'rgba(214,234,255,0.93)' : 'rgba(197,202,233,0.93)')
-          : 'rgba(255,255,255,0.90)';
+        // Transparent capsule — fill + stroke
+        const fillCol = isLine
+          ? (di === 3 ? 'rgba(59,130,246,0.12)' : 'rgba(99,102,241,0.12)')
+          : 'rgba(255,255,255,0.22)';
+        const strokeCol = isLine
+          ? (di === 3 ? 'rgba(59,130,246,0.55)' : 'rgba(99,102,241,0.55)')
+          : 'rgba(180,200,230,0.70)';
         ctx.beginPath();
         if (ctx.roundRect) { ctx.roundRect(bx, by, bw, bh, pr); }
         else {
@@ -1621,7 +1625,11 @@ const _cspDL = {
           ctx.lineTo(bx, by+pr);
           ctx.quadraticCurveTo(bx, by, bx+pr, by); ctx.closePath();
         }
+        ctx.fillStyle = fillCol;
         ctx.fill();
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
         // Text
         ctx.fillStyle = di <= 3 ? '#1565c0' : '#283593';
         ctx.fillText(text, pt.x, by + bh - py);
