@@ -1469,6 +1469,60 @@ function buildChartData(subPeriods) {
 
 Chart.register(ChartDataLabels);
 
+// ── Custom data-label plugin (bypasses external plugin issues) ───────────────
+const _cspDL = {
+  id: 'cspDL',
+  afterDatasetsDraw(chart) {
+    const { ctx, data, chartArea } = chart;
+    const nL = data.labels ? data.labels.length : 0;
+    data.datasets.forEach((ds, di) => {
+      if (di < 2) return;                          // skip Entry/Exit Exp bars
+      if (di === 2 && nL > 14) return;             // renewal bar only if ≤14 months
+      const meta = chart.getDatasetMeta(di);
+      if (!meta || meta.hidden) return;
+      const isLine = di >= 3;
+      const fSize  = isLine ? 10 : 9;
+      ctx.save();
+      ctx.font = `bold ${fSize}px 'Segoe UI',sans-serif`;
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'alphabetic';
+      meta.data.forEach((pt, j) => {
+        const val = ds.data[j];
+        if (val == null || val <= 0) return;
+        const text = isLine
+          ? (Math.round(val) + '%')
+          : (val >= 1 ? '$' + val.toFixed(1) + 'M' : '$' + (val * 1000).toFixed(0) + 'K');
+        const tw = ctx.measureText(text).width;
+        const px = 5, py = 2, pr = 3;
+        const bw = tw + px * 2, bh = fSize + py * 2 + 1;
+        const bx = pt.x - bw / 2;
+        const by = Math.max(chartArea.top + 2, pt.y - bh - 6);
+        // Pill background
+        ctx.fillStyle = isLine
+          ? (di === 3 ? 'rgba(214,234,255,0.93)' : 'rgba(197,202,233,0.93)')
+          : 'rgba(255,255,255,0.90)';
+        ctx.beginPath();
+        if (ctx.roundRect) { ctx.roundRect(bx, by, bw, bh, pr); }
+        else {
+          ctx.moveTo(bx+pr, by); ctx.lineTo(bx+bw-pr, by);
+          ctx.quadraticCurveTo(bx+bw, by, bx+bw, by+pr);
+          ctx.lineTo(bx+bw, by+bh-pr);
+          ctx.quadraticCurveTo(bx+bw, by+bh, bx+bw-pr, by+bh);
+          ctx.lineTo(bx+pr, by+bh);
+          ctx.quadraticCurveTo(bx, by+bh, bx, by+bh-pr);
+          ctx.lineTo(bx, by+pr);
+          ctx.quadraticCurveTo(bx, by, bx+pr, by); ctx.closePath();
+        }
+        ctx.fill();
+        // Text
+        ctx.fillStyle = di <= 3 ? '#1565c0' : '#283593';
+        ctx.fillText(text, pt.x, by + bh - py);
+      });
+      ctx.restore();
+    });
+  }
+};
+
 function renderChart(chartData) {
   try {
     const toM = v => v / 1e6;
@@ -1494,77 +1548,18 @@ function renderChart(chartData) {
 
     const ctx = canvas.getContext('2d');
     revenueChart = new Chart(ctx, {
+      plugins: [_cspDL],
       type: 'bar',
       data: {
         labels: newLabels,
         datasets: [
-          {
-            label: 'At-Entry Expiration',
-            data: newD0,
-            backgroundColor: 'rgba(189,189,189,0.8)',
-            borderColor: '#bdbdbd', borderWidth: 1, order: 3,
-            datalabels: { display: false }
-          },
-          {
-            label: 'At-Exit Expiration',
-            data: newD1,
-            backgroundColor: 'rgba(97,97,97,0.8)',
-            borderColor: '#616161', borderWidth: 1, order: 3,
-            datalabels: { display: false }
-          },
-          {
-            label: 'At-Entry Renewal',
-            data: newD2,
-            backgroundColor: 'rgba(25,118,210,0.85)',
-            borderColor: '#1976d2', borderWidth: 1, order: 3,
-            datalabels: {
-              clip: false,
-              display: function(c) {
-                return c.parsed != null && c.parsed.y > 0 && c.chart.data.labels.length <= 14;
-              },
-              formatter: function(v) {
-                if (!v) return '';
-                return v >= 1 ? '$' + v.toFixed(1) + 'M' : '$' + (v * 1000).toFixed(0) + 'K';
-              },
-              color: '#1565c0', font: { size: 9, weight: 'bold' },
-              anchor: 'end', align: 'top', offset: 3,
-              backgroundColor: 'rgba(255,255,255,0.85)',
-              borderRadius: 3, padding: { top:1, bottom:1, left:4, right:4 },
-            }
-          },
-          {
-            label: 'Annualized Renewal Rate',
-            data: newD3,
-            type: 'line', borderColor: '#42a5f5', backgroundColor: 'transparent',
-            borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#42a5f5',
-            tension: 0.3, yAxisID: 'y2', order: 1,
-            datalabels: {
-              clip: false,
-              display: function(c) { return c.parsed != null && c.parsed.y != null && c.parsed.y > 0; },
-              formatter: function(v) { return v != null ? Math.round(v) + '%' : ''; },
-              color: '#1565c0', font: { size: 10, weight: 'bold' },
-              anchor: 'end', align: 'top', offset: 3,
-              backgroundColor: 'rgba(214,234,255,0.90)',
-              borderRadius: 3, padding: { top:1, bottom:1, left:4, right:4 },
-            }
-          },
-          {
-            label: 'TTM Annualized Renewal Rate',
-            data: newD4,
-            type: 'line', borderColor: '#1a237e', backgroundColor: 'transparent',
-            borderWidth: 2, borderDash: [5, 5],
-            pointRadius: 4, pointBackgroundColor: '#1a237e',
-            tension: 0.3, yAxisID: 'y2', order: 1,
-            datalabels: {
-              clip: false,
-              display: function(c) { return c.parsed != null && c.parsed.y != null && c.parsed.y > 0; },
-              formatter: function(v) { return v != null ? Math.round(v) + '%' : ''; },
-              color: '#283593', font: { size: 10, weight: 'bold' },
-              anchor: 'end', align: 'top', offset: 3,
-              backgroundColor: 'rgba(197,202,233,0.90)',
-              borderRadius: 3, padding: { top:1, bottom:1, left:4, right:4 },
-            }
-          },
+          { label:'At-Entry Expiration',       data:newD0, backgroundColor:'rgba(189,189,189,0.8)', borderColor:'#bdbdbd', borderWidth:1, order:3 },
+          { label:'At-Exit Expiration',         data:newD1, backgroundColor:'rgba(97,97,97,0.8)',   borderColor:'#616161', borderWidth:1, order:3 },
+          { label:'At-Entry Renewal',           data:newD2, backgroundColor:'rgba(25,118,210,0.85)',borderColor:'#1976d2', borderWidth:1, order:3 },
+          { label:'Annualized Renewal Rate',    data:newD3, type:'line', borderColor:'#42a5f5', backgroundColor:'transparent',
+            borderWidth:2, pointRadius:4, pointBackgroundColor:'#42a5f5', tension:0.3, yAxisID:'y2', order:1 },
+          { label:'TTM Annualized Renewal Rate',data:newD4, type:'line', borderColor:'#1a237e', backgroundColor:'transparent',
+            borderWidth:2, borderDash:[5,5], pointRadius:4, pointBackgroundColor:'#1a237e', tension:0.3, yAxisID:'y2', order:1 },
         ]
       },
       options: {
