@@ -46,6 +46,16 @@
   #drill-modal{display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.5)}#drill-modal.show{display:flex;align-items:center;justify-content:center}
   #drill-panel{background:#fff;border-radius:10px;width:min(96vw,1120px);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden}
   .dth{position:sticky;top:0;background:#f9fafb;z-index:1;white-space:nowrap;padding:8px 10px;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#374151;text-align:right;border-bottom:1px solid #e5e7eb}.dth:first-child{text-align:left}
+  /* ── Drill master-detail rows ── */
+  .dm-grp-hdr{background:linear-gradient(135deg,#e8f0fe 55%,#f0f4ff);cursor:pointer;user-select:none}
+  .dm-grp-hdr:hover{filter:brightness(.97)}
+  .dm-grp-hdr td{padding:10px 10px;border-top:2px solid #c7d2fe;border-bottom:1px solid #c7d2fe}
+  .dm-toggle{display:inline-block;width:11px;margin-right:4px;color:#9ca3af;transition:transform .15s;font-size:.55rem;vertical-align:middle;line-height:1}
+  .dm-grp-open .dm-toggle{transform:rotate(90deg)}
+  .dm-det-row td{padding:6px 10px;border-bottom:1px solid #f0f0f8;background:#fafbff;font-size:.78rem}
+  .dm-det-row:hover td{background:#eef3ff}
+  .dm-det-hide{display:none}
+  .dm-dim{color:#d1d5db;font-size:.7rem}
   /* ── Export / utility buttons ── */
   .btn-xs{display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.73rem;font-weight:500;cursor:pointer;background:#fff;color:#374151;transition:background .15s;white-space:nowrap}.btn-xs:hover{background:#f3f4f6}
   /* ── Drill icon in table rows ── */
@@ -719,15 +729,15 @@
       <table class="w-full border-collapse" id="drill-table">
         <thead>
           <tr>
-            <th class="dth" style="text-align:left;min-width:140px">SubID</th>
-            <th class="dth" style="text-align:left;min-width:130px">Customer</th>
-            <th class="dth" style="text-align:left;min-width:120px">Partner</th>
+            <th class="dth" style="text-align:center;min-width:42px">#&nbsp;/&nbsp;SubID</th>
+            <th class="dth" style="text-align:left;min-width:160px">Customer</th>
+            <th class="dth" style="text-align:left;min-width:110px">Partner</th>
             <th class="dth" style="text-align:left;min-width:130px">Product (From)</th>
             <th class="dth" style="min-width:130px">→ Product (To)</th>
             <th class="dth" style="min-width:80px">Exp. Month</th>
             <th class="dth" style="min-width:50px">FY</th>
-            <th class="dth" style="min-width:65px">Renewed?</th>
-            <th class="dth" style="min-width:60px">On-Time?</th>
+            <th class="dth" style="min-width:75px">Renewed? / Rate</th>
+            <th class="dth" style="min-width:60px">On-Time? / Cnt</th>
             <th class="dth" style="min-width:110px">Upsell Motion</th>
             <th class="dth" style="min-width:95px">Exit ARR</th>
             <th class="dth" style="min-width:95px">Renewal ARR</th>
@@ -2220,33 +2230,109 @@ function showDM(idx) {
   if (!d) return;
   _dmCurrent = d.items;
   document.getElementById('drill-title').textContent = d.title;
-  document.getElementById('drill-subtitle').textContent = `${d.items.length} 筆訂閱期間`;
+
+  // ── Group by Customer + FY ──────────────────────────
+  const gMap = new Map();
+  d.items.forEach(sp => {
+    const key = `${sp.customer||''}|||${sp.fyLabel||''}`;
+    if (!gMap.has(key)) gMap.set(key, {
+      customer: sp.customer || '-', fy: sp.fyLabel || '-',
+      items: [], sumExit: 0, sumRen: 0, sumExitSeats: 0, sumRenSeats: 0
+    });
+    const g = gMap.get(key);
+    g.items.push(sp);
+    g.sumExit      += sp.expirationEndingARR    || 0;
+    g.sumRen       += sp.renewalInitialARR      || 0;
+    g.sumExitSeats += sp.expirationEndingSeats  || 0;
+    g.sumRenSeats  += sp.renewalInitialSeats    || 0;
+  });
+
+  // ── Sort groups: FY asc → sumExit desc ─────────────
+  const groups = [...gMap.values()].sort((a, b) =>
+    a.fy !== b.fy ? a.fy.localeCompare(b.fy) : b.sumExit - a.sumExit
+  );
+
+  document.getElementById('drill-subtitle').textContent =
+    `${groups.length} 個客戶・${d.items.length} 筆訂閱期間`;
+
   const tbody = document.getElementById('drill-tbody');
   tbody.innerHTML = '';
-  [...d.items].sort((a,b) => (b.expirationEndingARR||0) - (a.expirationEndingARR||0)).forEach(sp => {
-    const tr = document.createElement('tr');
-    tr.className = 'table-row-sub';
-    const ren = sp.isRenewed === 'Yes';
-    tr.innerHTML = `
-      <td class="font-mono text-xs" style="text-align:left">${sp.subId||'-'}</td>
-      <td style="text-align:left;white-space:normal;max-width:160px">${sp.customer||'-'}</td>
-      <td style="text-align:left">${sp.partnerName||'-'}</td>
-      <td style="text-align:left">${sp.productFrom||'-'}</td>
-      <td>${sp.productTo||'-'}</td>
-      <td>${sp.expMonthKey||'-'}</td>
-      <td>${sp.fyLabel||'-'}</td>
-      <td><span class="badge ${ren?'badge-blue':'badge-green'}">${sp.isRenewed}</span></td>
-      <td>${sp.onTime||'-'}</td>
-      <td style="white-space:normal">${sp.upsellMotion||'-'}</td>
-      <td>${fmtMoneyFull(sp.expirationEndingARR)}</td>
-      <td>${fmtMoneyFull(sp.renewalInitialARR)}</td>
-      <td>${sp.expirationEndingSeats}</td>
-      <td>${sp.renewalInitialSeats}</td>
+  const DIM = `<span class="dm-dim">—</span>`;
+
+  groups.forEach((grp, gi) => {
+    const gid = `dg_${idx}_${gi}`;
+    const rate = grp.sumExit > 0 ? grp.sumRen / grp.sumExit : null;
+    const rateHTML = rate !== null
+      ? `<span style="font-weight:700;color:${rate>=.9?'#065f46':rate>=.7?'#92400e':'#991b1b'}">${(rate*100).toFixed(1)}%</span>`
+      : DIM;
+
+    // ── Group header row ────────────────────────────────
+    // Cols: SubID | Customer | Partner | Prod(From) | Prod(To) | ExpMonth | FY | Renewed? | OnTime? | Upsell | ExitARR | RenARR | ExitSeats | RenSeats
+    const htr = document.createElement('tr');
+    htr.className = 'dm-grp-hdr dm-grp-open';
+    htr.dataset.gid = gid;
+    htr.onclick = () => toggleDMGroup(gid);
+    htr.innerHTML = `
+      <td style="text-align:left;min-width:0">
+        <span class="dm-toggle">▶</span><span style="color:#1e40af;font-weight:800;font-size:.78rem">${gi+1}.</span>
+      </td>
+      <td style="text-align:left;white-space:normal">
+        <span style="font-weight:700;color:#111827;font-size:.82rem">${grp.customer}</span>
+      </td>
+      <td>${DIM}</td>
+      <td>${DIM}</td>
+      <td>${DIM}</td>
+      <td>${DIM}</td>
+      <td style="text-align:center;font-weight:700;font-size:.8rem">${grp.fy}</td>
+      <td style="text-align:center">${rateHTML}</td>
+      <td style="text-align:center;color:#6b7280;font-size:.72rem;font-weight:600">${grp.items.length} 筆</td>
+      <td>${DIM}</td>
+      <td style="font-weight:700">${fmtMoneyFull(grp.sumExit)}</td>
+      <td style="font-weight:700">${fmtMoneyFull(grp.sumRen)}</td>
+      <td style="text-align:right;font-weight:700">${grp.sumExitSeats.toLocaleString()}</td>
+      <td style="text-align:right;font-weight:700">${grp.sumRenSeats.toLocaleString()}</td>
     `;
-    tbody.appendChild(tr);
+    tbody.appendChild(htr);
+
+    // ── Detail rows (sorted by Exit ARR desc) ──────────
+    [...grp.items]
+      .sort((a, b) => (b.expirationEndingARR||0) - (a.expirationEndingARR||0))
+      .forEach(sp => {
+        const dtr = document.createElement('tr');
+        dtr.className = 'dm-det-row';
+        dtr.dataset.gid = gid;
+        const ren = sp.isRenewed === 'Yes';
+        dtr.innerHTML = `
+          <td class="font-mono" style="text-align:left;padding-left:28px;font-size:.68rem;color:#6b7280">${sp.subId||'-'}</td>
+          <td style="text-align:left;white-space:normal;max-width:160px">${sp.customer||'-'}</td>
+          <td style="text-align:left">${sp.partnerName||'-'}</td>
+          <td style="text-align:left;white-space:normal">${sp.productFrom||'-'}</td>
+          <td style="white-space:normal">${sp.productTo||'-'}</td>
+          <td>${sp.expMonthKey||'-'}</td>
+          <td>${sp.fyLabel||'-'}</td>
+          <td><span class="badge ${ren?'badge-blue':'badge-green'}">${sp.isRenewed}</span></td>
+          <td>${sp.onTime||'-'}</td>
+          <td style="white-space:normal">${sp.upsellMotion||'-'}</td>
+          <td>${fmtMoneyFull(sp.expirationEndingARR)}</td>
+          <td>${fmtMoneyFull(sp.renewalInitialARR)}</td>
+          <td>${sp.expirationEndingSeats}</td>
+          <td>${sp.renewalInitialSeats}</td>
+        `;
+        tbody.appendChild(dtr);
+      });
   });
+
   document.getElementById('drill-modal').classList.add('show');
 }
+
+function toggleDMGroup(gid) {
+  const hdr  = document.querySelector(`.dm-grp-hdr[data-gid="${gid}"]`);
+  const rows = document.querySelectorAll(`.dm-det-row[data-gid="${gid}"]`);
+  const open = hdr.classList.contains('dm-grp-open');
+  hdr.classList.toggle('dm-grp-open', !open);
+  rows.forEach(r => r.classList.toggle('dm-det-hide', open));
+}
+
 function closeDrill() {
   document.getElementById('drill-modal').classList.remove('show');
 }
