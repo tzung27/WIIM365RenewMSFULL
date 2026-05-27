@@ -1585,6 +1585,7 @@ const _cspDL = {
     const nL = data.labels ? data.labels.length : 0;
     data.datasets.forEach((ds, di) => {
       if (di < 2) return;                          // skip Entry/Exit Exp bars
+      if (nL > 18) return;                         // hide ALL labels when > 18 months (too cluttered)
       if (di === 2 && nL > 14) return;             // renewal bar only if ≤14 months
       const meta = chart.getDatasetMeta(di);
       if (!meta || meta.hidden) return;
