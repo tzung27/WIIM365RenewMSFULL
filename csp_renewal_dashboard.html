@@ -56,6 +56,10 @@
   .dm-det-row:hover td{background:#eef3ff}
   .dm-det-hide{display:none}
   .dm-dim{color:#d1d5db;font-size:.7rem}
+  .dm-sortable{cursor:pointer;user-select:none}
+  .dm-sortable:hover{background:#e8eeff!important}
+  .dm-si{margin-left:3px;font-size:.55rem;opacity:.28;vertical-align:middle}
+  .dm-si.active{opacity:1;color:#3b82f6}
   /* ── Export / utility buttons ── */
   .btn-xs{display:inline-flex;align-items:center;gap:3px;padding:4px 10px;border:1px solid #d1d5db;border-radius:5px;font-size:.73rem;font-weight:500;cursor:pointer;background:#fff;color:#374151;transition:background .15s;white-space:nowrap}.btn-xs:hover{background:#f3f4f6}
   /* ── Drill icon in table rows ── */
@@ -730,19 +734,19 @@
         <thead>
           <tr>
             <th class="dth" style="text-align:center;min-width:42px">#&nbsp;/&nbsp;SubID</th>
-            <th class="dth" style="text-align:left;min-width:160px">Customer</th>
+            <th class="dth dm-sortable" onclick="sortDMBy('customer')" style="text-align:left;min-width:160px">Customer<span class="dm-si" id="dm-si-customer">▲▼</span></th>
             <th class="dth" style="text-align:left;min-width:110px">Partner</th>
             <th class="dth" style="text-align:left;min-width:130px">Product (From)</th>
             <th class="dth" style="min-width:130px">→ Product (To)</th>
             <th class="dth" style="min-width:80px">Exp. Month</th>
-            <th class="dth" style="min-width:50px">FY</th>
-            <th class="dth" style="min-width:75px">Renewed? / Rate</th>
-            <th class="dth" style="min-width:60px">On-Time? / Cnt</th>
+            <th class="dth dm-sortable" onclick="sortDMBy('fy')" style="min-width:50px">FY<span class="dm-si" id="dm-si-fy">▲▼</span></th>
+            <th class="dth dm-sortable" onclick="sortDMBy('rate')" style="min-width:80px">Renewed?&nbsp;/&nbsp;Rate<span class="dm-si" id="dm-si-rate">▲▼</span></th>
+            <th class="dth dm-sortable" onclick="sortDMBy('cnt')" style="min-width:65px">On-Time?&nbsp;/&nbsp;Cnt<span class="dm-si" id="dm-si-cnt">▲▼</span></th>
             <th class="dth" style="min-width:110px">Upsell Motion</th>
-            <th class="dth" style="min-width:95px">Exit ARR</th>
-            <th class="dth" style="min-width:95px">Renewal ARR</th>
-            <th class="dth" style="min-width:70px">Exit Seats</th>
-            <th class="dth" style="min-width:80px">Renewal Seats</th>
+            <th class="dth dm-sortable" onclick="sortDMBy('exitArr')" style="min-width:95px">Exit ARR<span class="dm-si" id="dm-si-exitArr">▲▼</span></th>
+            <th class="dth dm-sortable" onclick="sortDMBy('renArr')" style="min-width:95px">Renewal ARR<span class="dm-si" id="dm-si-renArr">▲▼</span></th>
+            <th class="dth dm-sortable" onclick="sortDMBy('exitSeats')" style="min-width:70px">Exit Seats<span class="dm-si" id="dm-si-exitSeats">▲▼</span></th>
+            <th class="dth dm-sortable" onclick="sortDMBy('renSeats')" style="min-width:80px">Renewal Seats<span class="dm-si" id="dm-si-renSeats">▲▼</span></th>
           </tr>
         </thead>
         <tbody id="drill-tbody"></tbody>
@@ -774,6 +778,8 @@ let crossFilter = { dim: null, value: null };
 let _dm = {};     // int → {title, items}
 let _dmIdx = 0;
 let _dmCurrent = null;  // items shown in open modal
+let _dmGroups  = [];    // grouped data for current modal
+let _dmSort    = { col: null, asc: true };  // null = default (FY asc, ExitARR desc)
 
 // ========================= EXP MONTH CUSTOM DROPDOWN =========================
 function toggleExpDropdown(e) {
@@ -2231,43 +2237,67 @@ function showDM(idx) {
   _dmCurrent = d.items;
   document.getElementById('drill-title').textContent = d.title;
 
-  // ── Group by Customer + FY ──────────────────────────
+  // ── Group by Customer + FY, assign stable gids ──────
   const gMap = new Map();
+  let gCount = 0;
   d.items.forEach(sp => {
     const key = `${sp.customer||''}|||${sp.fyLabel||''}`;
     if (!gMap.has(key)) gMap.set(key, {
+      gid: `dg_${idx}_${gCount++}`,
       customer: sp.customer || '-', fy: sp.fyLabel || '-',
       items: [], sumExit: 0, sumRen: 0, sumExitSeats: 0, sumRenSeats: 0
     });
     const g = gMap.get(key);
     g.items.push(sp);
-    g.sumExit      += sp.expirationEndingARR    || 0;
-    g.sumRen       += sp.renewalInitialARR      || 0;
-    g.sumExitSeats += sp.expirationEndingSeats  || 0;
-    g.sumRenSeats  += sp.renewalInitialSeats    || 0;
+    g.sumExit      += sp.expirationEndingARR   || 0;
+    g.sumRen       += sp.renewalInitialARR     || 0;
+    g.sumExitSeats += sp.expirationEndingSeats || 0;
+    g.sumRenSeats  += sp.renewalInitialSeats   || 0;
   });
 
-  // ── Sort groups: FY asc → sumExit desc ─────────────
-  const groups = [...gMap.values()].sort((a, b) =>
-    a.fy !== b.fy ? a.fy.localeCompare(b.fy) : b.sumExit - a.sumExit
-  );
+  _dmGroups = [...gMap.values()];
+  _dmSort   = { col: null, asc: true };
 
   document.getElementById('drill-subtitle').textContent =
-    `${groups.length} 個客戶・${d.items.length} 筆訂閱期間`;
+    `${_dmGroups.length} 個客戶・${d.items.length} 筆訂閱期間`;
+
+  renderDMTable();
+  updateDMSortHeaders();
+  document.getElementById('drill-modal').classList.add('show');
+}
+
+function renderDMTable() {
+  // ── Apply sort ──────────────────────────────────────
+  const sorted = [..._dmGroups];
+  if (!_dmSort.col) {
+    sorted.sort((a, b) => a.fy !== b.fy ? a.fy.localeCompare(b.fy) : b.sumExit - a.sumExit);
+  } else {
+    const cmps = {
+      customer:  (a, b) => a.customer.localeCompare(b.customer, 'zh-TW'),
+      fy:        (a, b) => a.fy.localeCompare(b.fy),
+      rate:      (a, b) => (a.sumExit>0?a.sumRen/a.sumExit:0) - (b.sumExit>0?b.sumRen/b.sumExit:0),
+      cnt:       (a, b) => a.items.length - b.items.length,
+      exitArr:   (a, b) => a.sumExit - b.sumExit,
+      renArr:    (a, b) => a.sumRen  - b.sumRen,
+      exitSeats: (a, b) => a.sumExitSeats - b.sumExitSeats,
+      renSeats:  (a, b) => a.sumRenSeats  - b.sumRenSeats,
+    };
+    const cmp = cmps[_dmSort.col] || (() => 0);
+    sorted.sort((a, b) => _dmSort.asc ? cmp(a, b) : -cmp(a, b));
+  }
 
   const tbody = document.getElementById('drill-tbody');
   tbody.innerHTML = '';
   const DIM = `<span class="dm-dim">—</span>`;
 
-  groups.forEach((grp, gi) => {
-    const gid = `dg_${idx}_${gi}`;
+  sorted.forEach((grp, gi) => {
+    const { gid } = grp;
     const rate = grp.sumExit > 0 ? grp.sumRen / grp.sumExit : null;
     const rateHTML = rate !== null
       ? `<span style="font-weight:700;color:${rate>=.9?'#065f46':rate>=.7?'#92400e':'#991b1b'}">${(rate*100).toFixed(1)}%</span>`
       : DIM;
 
-    // ── Group header row ────────────────────────────────
-    // Cols: SubID | Customer | Partner | Prod(From) | Prod(To) | ExpMonth | FY | Renewed? | OnTime? | Upsell | ExitARR | RenARR | ExitSeats | RenSeats
+    // ── Group header row ──────────────────────────────
     const htr = document.createElement('tr');
     htr.className = 'dm-grp-hdr dm-grp-open';
     htr.dataset.gid = gid;
@@ -2279,10 +2309,7 @@ function showDM(idx) {
       <td style="text-align:left;white-space:normal">
         <span style="font-weight:700;color:#111827;font-size:.82rem">${grp.customer}</span>
       </td>
-      <td>${DIM}</td>
-      <td>${DIM}</td>
-      <td>${DIM}</td>
-      <td>${DIM}</td>
+      <td>${DIM}</td><td>${DIM}</td><td>${DIM}</td><td>${DIM}</td>
       <td style="text-align:center;font-weight:700;font-size:.8rem">${grp.fy}</td>
       <td style="text-align:center">${rateHTML}</td>
       <td style="text-align:center;color:#6b7280;font-size:.72rem;font-weight:600">${grp.items.length} 筆</td>
@@ -2294,7 +2321,7 @@ function showDM(idx) {
     `;
     tbody.appendChild(htr);
 
-    // ── Detail rows (sorted by Exit ARR desc) ──────────
+    // ── Detail rows (sorted by Exit ARR desc) ─────────
     [...grp.items]
       .sort((a, b) => (b.expirationEndingARR||0) - (a.expirationEndingARR||0))
       .forEach(sp => {
@@ -2321,8 +2348,26 @@ function showDM(idx) {
         tbody.appendChild(dtr);
       });
   });
+}
 
-  document.getElementById('drill-modal').classList.add('show');
+function sortDMBy(col) {
+  if (_dmSort.col === col) {
+    _dmSort.asc = !_dmSort.asc;           // toggle direction
+  } else {
+    _dmSort.col = col;
+    _dmSort.asc = (col === 'customer' || col === 'fy');  // text → asc first; numbers → desc first
+  }
+  renderDMTable();
+  updateDMSortHeaders();
+}
+
+function updateDMSortHeaders() {
+  ['customer','fy','rate','cnt','exitArr','renArr','exitSeats','renSeats'].forEach(col => {
+    const el = document.getElementById(`dm-si-${col}`);
+    if (!el) return;
+    if (_dmSort.col === col) { el.textContent = _dmSort.asc ? '▲' : '▼'; el.classList.add('active'); }
+    else                     { el.textContent = '▲▼'; el.classList.remove('active'); }
+  });
 }
 
 function toggleDMGroup(gid) {
